@@ -24,6 +24,7 @@
 #import "OCPLaunchCoordinator.h"
 #import "OCPCrashGuard.h"
 #import "OCPAudioObserver.h"
+#import "OCPSelfTest.h"
 #import "OCPTransport.h"
 
 /// Định nghĩa trong Tweak/CarPlayApp/Hooks.xm.
@@ -92,6 +93,7 @@ extern void OCPInstallCarPlayHooks(void);
             // 7. Khảo sát runtime (chỉ khi bật RuntimeSurvey) — công cụ nghiên cứu trả lời
             //    Q1-Q6 trong RESEARCH.md bằng dữ liệu từ chính iOS 18.6.2.
             [OCPRuntimeSurvey runIfEnabled];
+            if (isSpringBoard) [OCPSelfTest runIfEnabled];
 
             if (isCarPlayApp) {
                 // Process này chỉ tồn tại khi CarPlay đang kết nối, nên chính việc dylib

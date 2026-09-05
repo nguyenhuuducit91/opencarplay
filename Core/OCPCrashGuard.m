@@ -75,6 +75,59 @@ static const NSTimeInterval kHealthyAfter = 60.0;
     }
 }
 
+#pragma mark - Thao tác rủi ro
+
++ (NSString *)markerPathForOperation:(NSString *)name {
+    NSString *safeName = [name stringByReplacingOccurrencesOfString:@"/" withString:@"_"];
+    return OCPRootedPath([NSString stringWithFormat:
+        @"/var/mobile/Library/Preferences/com.opencarplay.running-%@", safeName]);
+}
+
++ (BOOL)beginRiskyOperation:(NSString *)name disablingPreference:(nullable NSString *)preferenceKey {
+    if (name.length == 0) return NO;
+
+    NSString *markerPath = [self markerPathForOperation:name];
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+
+    if ([fileManager fileExistsAtPath:markerPath]) {
+        OCPLogError_(@"'%@' đã chạy dở ở lần nạp trước và không hoàn tất — "
+                     @"nhiều khả năng nó làm treo máy. Tự tắt lần này.", name);
+
+        [fileManager removeItemAtPath:markerPath error:NULL];
+
+        if (preferenceKey.length > 0) {
+            @try {
+                NSString *preferencesPath = OCPPreferencesPath();
+                NSMutableDictionary *preferences =
+                    [[NSDictionary dictionaryWithContentsOfFile:preferencesPath] mutableCopy];
+                if (preferences != nil) {
+                    preferences[preferenceKey] = @NO;
+                    [preferences writeToFile:preferencesPath atomically:YES];
+                    OCPLogError_(@"đã đặt %@ = NO trong preferences", preferenceKey);
+                }
+            } @catch (NSException *exception) {
+                OCPLogError_(@"không tắt được %@: %@", preferenceKey, exception.reason);
+            }
+        }
+        return NO;
+    }
+
+    @try {
+        NSString *content = [NSString stringWithFormat:@"%@\n", [NSDate date]];
+        [content writeToFile:markerPath atomically:YES encoding:NSUTF8StringEncoding error:NULL];
+    } @catch (NSException *exception) {
+        // Không ghi được dấu thì vẫn cho chạy — lưới an toàn không được tự nó
+        // trở thành lý do chặn tính năng.
+    }
+    return YES;
+}
+
++ (void)endRiskyOperation:(NSString *)name {
+    if (name.length == 0) return;
+    [[NSFileManager defaultManager] removeItemAtPath:[self markerPathForOperation:name]
+                                               error:NULL];
+}
+
 + (void)markSessionHealthy {
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(kHealthyAfter * NSEC_PER_SEC)),
                    dispatch_get_global_queue(QOS_CLASS_BACKGROUND, 0), ^{

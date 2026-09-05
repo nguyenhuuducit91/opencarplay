@@ -16,6 +16,7 @@
 #import "OCPDisplayConfiguration.h"
 #import "OCPSceneBridge.h"
 #import "OCPAudioObserver.h"
+#import "OCPCrashGuard.h"
 
 /// SBSLaunchApplicationWithIdentifier(CFStringRef identifier, Boolean suspended) -> int
 /// Symbol công khai của SpringBoardServices; 0 nghĩa là thành công.
@@ -204,9 +205,17 @@ typedef int (*OCPLaunchFunction)(CFStringRef, Boolean);
 - (BOOL)attemptSceneHostingFor:(NSString *)bundleIdentifier {
     if (![[OCPPreferences sharedPreferences] experimentalSceneHosting]) return NO;
 
+    // Dựng scene là thao tác rủi ro nhất trong tweak. Nếu lần trước SpringBoard chết
+    // ở đây, tắt hẳn tính năng thay vì làm người dùng treo máy lần nữa.
+    if (![OCPCrashGuard beginRiskyOperation:@"scene-hosting"
+                        disablingPreference:@"ExperimentalSceneHosting"]) {
+        return NO;
+    }
+
     if (![OCPSceneBridge isSupported]) {
         OCPLogError_(@"scene hosting bật nhưng thiếu tiền đề: %@ — lùi về mở trên iPhone",
                      [[OCPSceneBridge missingRequirements] componentsJoinedByString:@", "]);
+        [OCPCrashGuard endRiskyOperation:@"scene-hosting"];
         return NO;
     }
 
@@ -214,6 +223,7 @@ typedef int (*OCPLaunchFunction)(CFStringRef, Boolean);
         [[OCPCarPlayDetector sharedDetector] displayConfiguration];
     if (display == nil || !display.isValid) {
         OCPLogError_(@"không có màn hình xe khả dụng — lùi về mở trên iPhone");
+        [OCPCrashGuard endRiskyOperation:@"scene-hosting"];
         return NO;
     }
 
@@ -225,6 +235,7 @@ typedef int (*OCPLaunchFunction)(CFStringRef, Boolean);
                                                                          error:&error];
     if (window == nil) {
         OCPLogError_(@"không tạo được cửa sổ màn hình xe: %@", error.localizedDescription);
+        [OCPCrashGuard endRiskyOperation:@"scene-hosting"];
         return NO;
     }
 
@@ -243,14 +254,19 @@ typedef int (*OCPLaunchFunction)(CFStringRef, Boolean);
         OCPLogError_(@"scene bridge thất bại: %@", error.localizedDescription);
         [bridge teardown];
         [window dismiss];
+        [OCPCrashGuard endRiskyOperation:@"scene-hosting"];
         return NO;
     }
 
     if (![window presentContentView:applicationView]) {
         [bridge teardown];
         [window dismiss];
+        [OCPCrashGuard endRiskyOperation:@"scene-hosting"];
         return NO;
     }
+
+    // Hiển thị được rồi thì thao tác coi như an toàn.
+    [OCPCrashGuard endRiskyOperation:@"scene-hosting"];
 
     self.sceneBridge = bridge;
     self.carPlayWindow = window;

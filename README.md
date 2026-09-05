@@ -126,10 +126,28 @@ hướng khác: [RESEARCH.md §5](RESEARCH.md).
 
 ## Troubleshooting
 
-**Bootloop / SpringBoard chết liên tục**
+**Máy treo ở màn hình khởi động, hoặc SpringBoard chết liên tục**
 
-Tweak tự phát hiện và tắt: nếu SpringBoard nạp lại 4 lần trong 45 giây, nó tự tạo file kill
-switch và ngừng hoạt động, máy trở lại bình thường ở lần respring kế tiếp. Nếu cần tắt thủ công:
+Với jailbreak semi-untethered (Dopamine), khởi động lại máy là đủ để thoát: máy boot vào trạng
+thái **chưa jailbreak**, tweak không được nạp, máy dùng bình thường.
+
+Sau đó, trước khi jailbreak lại:
+
+1. Bật **Safe Mode** trong Dopamine (jailbreak nhưng không nạp tweak)
+2. Xoá file cấu hình — chỉ vậy là đủ để mọi tính năng trở về mặc định (tắt hết):
+   `/var/jb/var/mobile/Library/Preferences/com.opencarplay.plist`
+3. Cài bản mới nhất rồi respring
+
+Tweak có hai lưới an toàn tự động:
+
+- **Bộ đếm crash** — SpringBoard nạp lại 4 lần trong 45 giây thì tweak tự tạo kill switch
+  và ngừng hoạt động.
+- **Dấu thao tác rủi ro** — mỗi tính năng thử nghiệm ghi một dấu trước khi chạy và xoá sau khi
+  qua an toàn. Nếu lần nạp sau vẫn thấy dấu cũ, tính năng đó bị tắt tự động trong preferences.
+  Lưới này bắt được cả trường hợp **treo** (không crash, không có crash report, SpringBoard
+  không tự khởi động lại) — thứ mà bộ đếm crash không thấy.
+
+Nếu cần tắt thủ công:
 
 ```bash
 ssh mobile@<device>

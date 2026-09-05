@@ -8,6 +8,7 @@
 #import "OCPLog.h"
 #import "OCPProbe.h"
 #import "OCPProcessIdentity.h"
+#import "OCPCrashGuard.h"
 
 #import <objc/runtime.h>
 
@@ -243,11 +244,19 @@
 
     if (!enabled) return;
 
+    // Khảo sát duyệt hàng chục nghìn class; nếu lần trước chết giữa chừng thì lần này
+    // không thử lại.
+    if (![OCPCrashGuard beginRiskyOperation:@"runtime-survey"
+                        disablingPreference:@"RuntimeSurvey"]) {
+        return;
+    }
+
     // Chạy trễ và ngoài main thread: khảo sát đọc hàng chục nghìn class, không được
     // làm chậm quá trình khởi động của SpringBoard.
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(8 * NSEC_PER_SEC)),
                    dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
         [self runNow];
+        [OCPCrashGuard endRiskyOperation:@"runtime-survey"];
     });
 }
 

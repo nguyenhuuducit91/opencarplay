@@ -10,11 +10,13 @@
 #import "OCPCarPlayDetector.h"
 
 #import <UIKit/UIKit.h>
+#import <stdatomic.h>
 
 #import "OCPDefines.h"
 #import "OCPDisplayConfiguration.h"
 #import "OCPLog.h"
 #import "OCPProbe.h"
+#import "OCPCrashGuard.h"
 #import "OCPAudioObserver.h"
 
 NSString *const OCPCarPlayDidConnectNotification = @"com.opencarplay.carplay-connected";
@@ -27,6 +29,10 @@ static NSString *const kLegacyCarPlayConnectionNotification = @"CarPlayIsConnect
 /// Gộp nhiều tín hiệu dồn dập thành một lần đánh giá.
 static const NSTimeInterval kEvaluationDebounce = 0.35;
 
+/// Giới hạn cứng cho chế độ khám phá tín hiệu. Xem ghi chú trong -start.
+static const int kDiscoveryBudget = 20000;
+static const NSTimeInterval kDiscoveryDuration = 45.0;
+
 @interface OCPCarPlayDetector ()
 @property (nonatomic, assign, getter=isCarPlayConnected) BOOL carPlayConnected;
 @property (nonatomic, strong, nullable) OCPDisplayConfiguration *displayConfiguration;
@@ -35,9 +41,16 @@ static const NSTimeInterval kEvaluationDebounce = 0.35;
 @property (nonatomic, assign) BOOL discoveryMode;
 @property (nonatomic, strong) NSMutableArray<id> *observers;
 @property (nonatomic, strong) NSMutableSet<NSString *> *seenDiscoveryNames;
+@property (nonatomic, strong, nullable) id discoveryObserver;
+@property (nonatomic, strong, nullable) dispatch_queue_t discoveryQueue;
+@property (nonatomic, assign) int discoveryBudget;
 @end
 
-@implementation OCPCarPlayDetector
+@implementation OCPCarPlayDetector {
+    /// Ngân sách còn lại của chế độ khám phá. Kiểu nguyên tử vì được đọc/giảm từ
+    /// mọi thread đang bắn notification — đây là đường chạy nóng nhất của tweak.
+    atomic_int _discoveryRemaining;
+}
 
 + (instancetype)sharedDetector {
     static OCPCarPlayDetector *instance;
@@ -95,19 +108,26 @@ static const NSTimeInterval kEvaluationDebounce = 0.35;
     [_observers addObject:legacyObserver];
     [sources addObject:kLegacyCarPlayConnectionNotification];
 
-    // Nguồn 3 — chế độ khám phá: nghe MỌI notification trong process và ghi lại tên
-    // nào liên quan tới CarPlay/display. Đây là cách trả lời Q8 bằng dữ liệu thật.
+    // Nguồn 3 — chế độ khám phá.
+    //
+    // LỊCH SỬ: bản đầu đăng ký observer với name:nil object:nil queue:nil, tức nhận
+    // MỌI notification trong process, và block chạy đồng bộ trên thread bắn tin. Trong
+    // SpringBoard — nơi có hàng nghìn notification mỗi giây từ nhiều thread — mỗi lần
+    // nhận đều cấp phát chuỗi và giành một @synchronized. Kết quả: SpringBoard đơ hoàn
+    // toàn, không crash nên cũng không có crash report, và máy treo ở màn hình khởi động.
+    //
+    // Bản sửa giữ ba giới hạn cứng, mỗi giới hạn đủ để tự cắt vòng lặp:
+    //   1. observer tự huỷ sau kDiscoveryDuration giây
+    //   2. dừng sau kDiscoveryBudget notification đã xét
+    //   3. xử lý trên serial queue riêng, không chặn thread bắn tin, không cần khoá
     [self loadDiscoveryPreference];
     if (_discoveryMode) {
-        id discoveryObserver = [center addObserverForName:nil
-                                                   object:nil
-                                                    queue:nil
-                                               usingBlock:^(NSNotification *note) {
-            [weakSelf recordDiscoveredNotification:note.name];
-        }];
-        [_observers addObject:discoveryObserver];
-        [sources addObject:@"SignalDiscovery"];
-        OCPLogC(OCPLogCarPlay, @"chế độ khám phá tín hiệu ĐANG BẬT — chỉ dùng khi nghiên cứu");
+        // Nếu lần nạp trước chết trong lúc khám phá, không lặp lại sai lầm đó.
+        if ([OCPCrashGuard beginRiskyOperation:@"signal-discovery"
+                           disablingPreference:@"SignalDiscovery"]) {
+            [self startBoundedSignalDiscovery];
+            [sources addObject:@"SignalDiscovery"];
+        }
     }
 
     self.activeSignalSources = sources;
@@ -121,6 +141,8 @@ static const NSTimeInterval kEvaluationDebounce = 0.35;
 - (void)stop {
     if (!_running) return;
     _running = NO;
+
+    [self stopSignalDiscovery:@"detector dừng"];
 
     NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
     for (id observer in _observers) {
@@ -143,10 +165,67 @@ static const NSTimeInterval kEvaluationDebounce = 0.35;
     }
 }
 
+- (void)startBoundedSignalDiscovery {
+    // Hàng đợi tuần tự riêng: block của observer chỉ đẩy việc sang đây rồi trả về
+    // ngay, nên thread đang bắn notification không bao giờ bị giữ lại.
+    self.discoveryQueue = dispatch_queue_create("com.opencarplay.discovery",
+                                                DISPATCH_QUEUE_SERIAL);
+    self.discoveryBudget = kDiscoveryBudget;
+    atomic_store(&_discoveryRemaining, kDiscoveryBudget);
+
+    __weak typeof(self) weakSelf = self;
+    self.discoveryObserver =
+        [[NSNotificationCenter defaultCenter] addObserverForName:nil
+                                                          object:nil
+                                                           queue:nil
+                                                      usingBlock:^(NSNotification *note) {
+        typeof(self) strongSelf = weakSelf;
+        if (strongSelf == nil) return;
+
+        // Kiểm tra ngân sách bằng phép toán nguyên tử, trước khi làm bất cứ việc gì
+        // tốn kém. Đây là đường chạy nóng nhất trong toàn bộ tweak.
+        if (atomic_fetch_sub(&strongSelf->_discoveryRemaining, 1) <= 0) return;
+
+        NSString *name = note.name;
+        if (name.length == 0) return;
+
+        dispatch_async(strongSelf.discoveryQueue, ^{
+            [strongSelf recordDiscoveredNotification:name];
+        });
+    }];
+
+    // Giới hạn theo thời gian: dù ngân sách chưa cạn cũng phải dừng.
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(kDiscoveryDuration * NSEC_PER_SEC)),
+                   dispatch_get_main_queue(), ^{
+        [weakSelf stopSignalDiscovery:@"hết thời gian"];
+    });
+
+    OCPLogError_(@"khám phá tín hiệu BẬT — tối đa %d notification hoặc %.0f giây, "
+                 @"xử lý ngoài luồng gửi",
+                 kDiscoveryBudget, kDiscoveryDuration);
+}
+
+- (void)stopSignalDiscovery:(NSString *)reason {
+    if (self.discoveryObserver == nil) return;
+
+    [[NSNotificationCenter defaultCenter] removeObserver:self.discoveryObserver];
+    self.discoveryObserver = nil;
+    [OCPCrashGuard endRiskyOperation:@"signal-discovery"];
+    OCPLogError_(@"khám phá tín hiệu TẮT (%@) — đã ghi %lu tên",
+                 reason, (unsigned long)self.seenDiscoveryNames.count);
+}
+
+/// Chỉ chạy trên discoveryQueue, nên không cần khoá.
 - (void)recordDiscoveredNotification:(nullable NSString *)name {
     if (name.length == 0) return;
 
-    // Chỉ quan tâm tên có khả năng liên quan — SpringBoard bắn hàng nghìn notification.
+    if (atomic_load(&_discoveryRemaining) <= 0) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self stopSignalDiscovery:@"hết ngân sách"];
+        });
+        return;
+    }
+
     static NSArray<NSString *> *needles;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
@@ -160,10 +239,8 @@ static const NSTimeInterval kEvaluationDebounce = 0.35;
     }
     if (!interesting) return;
 
-    @synchronized (_seenDiscoveryNames) {
-        if ([_seenDiscoveryNames containsObject:name]) return;   // chỉ ghi lần đầu
-        [_seenDiscoveryNames addObject:name];
-    }
+    if ([_seenDiscoveryNames containsObject:name]) return;   // chỉ ghi lần đầu
+    [_seenDiscoveryNames addObject:name];
     OCPLogC(OCPLogCarPlay, @"[discovery] notification: %@", name);
 }
 

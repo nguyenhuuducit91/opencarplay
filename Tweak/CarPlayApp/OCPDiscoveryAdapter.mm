@@ -7,6 +7,7 @@
 #import "OCPLog.h"
 #import "OCPPreferences.h"
 #import "OCPProbe.h"
+#import "OCPCrashGuard.h"
 
 NSString *const OCPApplicationTag = @"OpenCarPlay";
 
@@ -21,6 +22,16 @@ NSString *const OCPApplicationTag = @"OpenCarPlay";
     // Cổng riêng cho phần thử nghiệm: người dùng phải bật tường minh, vì đây là
     // phần đầu tiên thực sự thay đổi hành vi của CarPlay.
     if (!preferences.experimentalDiscovery) return NO;
+
+    // Nếu lần trước dashboard chết trong lúc dựng danh sách, không thử lại.
+    static BOOL guardChecked = NO;
+    static BOOL guardPassed = NO;
+    if (!guardChecked) {
+        guardChecked = YES;
+        guardPassed = [OCPCrashGuard beginRiskyOperation:@"carplay-discovery"
+                                     disablingPreference:@"ExperimentalDiscovery"];
+    }
+    if (!guardPassed) return NO;
 
     if ([[OCPAppRegistry sharedRegistry] allowedApplications].count == 0) {
         OCPLogC(OCPLogApplication, @"discovery bật nhưng danh sách ứng dụng rỗng");
@@ -205,6 +216,9 @@ NSString *const OCPApplicationTag = @"OpenCarPlay";
     } @catch (NSException *exception) {
         OCPLogError_(@"augment library thất bại: %@ — %@", exception.name, exception.reason);
     }
+
+    // Qua được tới đây nghĩa là dựng danh sách không làm chết dashboard.
+    [OCPCrashGuard endRiskyOperation:@"carplay-discovery"];
 
     OCPLogError_(@"discovery: %lu/%lu ứng dụng đã đưa lên dashboard (chiến lược %@)",
                  (unsigned long)added,

@@ -35,13 +35,13 @@
 	<key>DebugLogging</key>
 	<true/>
 
-	<!-- Công cụ nghiên cứu — xem README.
+	<!-- Công cụ nghiên cứu — xem README. BẬT TỪNG CÁI MỘT, không bật cùng lúc.
 	     RuntimeSurvey ghi khảo sát runtime vào /var/mobile/Media/OpenCarPlay/
 	     SignalDiscovery ghi lại tên notification liên quan CarPlay mà SpringBoard nhận -->
 	<key>RuntimeSurvey</key>
-	<true/>
+	<false/>
 	<key>SignalDiscovery</key>
-	<true/>
+	<false/>
 
 	<!-- THỬ NGHIỆM: đưa ứng dụng trong AllowedApplications lên dashboard CarPlay.
 	     Tách riêng khỏi Enabled vì đây là phần đầu tiên thực sự thay đổi hành vi

@@ -30,6 +30,22 @@ NS_ASSUME_NONNULL_BEGIN
 /// Số lần nạp gần đây trong cửa sổ theo dõi.
 + (NSUInteger)recentLoadCount;
 
+/// Đánh dấu bắt đầu một thao tác rủi ro và cho biết có được phép chạy không.
+///
+/// Vì sao cần, ngoài bộ đếm crash ở trên: một tweak làm SpringBoard ĐƠ (chứ không
+/// crash) sẽ không tạo crash report và cũng không làm SpringBoard tự khởi động lại —
+/// người dùng buộc phải nhấn nút nguồn. Bộ đếm crash không thấy gì cả.
+///
+/// Cách hoạt động: ghi một dấu trước khi chạy phần rủi ro, xoá dấu sau khi qua được.
+/// Nếu lần nạp sau vẫn thấy dấu cũ, nghĩa là lần trước đã chết ở đúng chỗ đó — khi
+/// đó hàm trả NO và tự tắt khoá preferences tương ứng, để máy không treo lần thứ hai.
+///
+/// `preferenceKey` là khoá sẽ bị tắt (nil nếu không có khoá nào tương ứng).
++ (BOOL)beginRiskyOperation:(NSString *)name disablingPreference:(nullable NSString *)preferenceKey;
+
+/// Xoá dấu sau khi thao tác đã qua an toàn.
++ (void)endRiskyOperation:(NSString *)name;
+
 @end
 
 NS_ASSUME_NONNULL_END
