@@ -58,8 +58,20 @@ include $(THEOS_MAKE_PATH)/tweak.mk
 # Muốn có lại bảng cài đặt thì cần toolchain sinh được chained fixups hợp lệ — thực tế là
 # Xcode trên macOS.
 #
-SUBPROJECTS += Preferences
-include $(THEOS_MAKE_PATH)/aggregate.mk
+# Preference bundle bị loại khỏi bản dựng, lần này có bằng chứng dứt khoát.
+#
+# Bundle được Settings nạp bằng dlopen và crash ngay trong constructor tại
+# NSClassFromString -> objc_msgSend, với địa chỉ mang nguyên bits chữ ký PAC
+# (0x0020000...). Đây là mâu thuẫn không cờ biên dịch nào chữa được:
+#
+#   arm64e mặc định   -> clang 13 sinh lệnh PAC không đúng chuẩn iOS 18.6 -> crash
+#   -fno-ptrauth-*    -> dyld vẫn ký con trỏ GOT, mã không xác thực       -> crash
+#
+# Cần toolchain sinh arm64e đúng ABI (Xcode trên macOS). Đến lúc đó, cấu hình dùng file
+# plist trực tiếp.
+#
+# SUBPROJECTS += Preferences
+# include $(THEOS_MAKE_PATH)/aggregate.mk
 
 # Chuẩn hoá quyền trước khi đóng gói: umask của máy build (thường 002) để lại bit
 # group-write, không phù hợp cho file cài vào hệ thống.
