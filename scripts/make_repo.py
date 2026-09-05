@@ -17,6 +17,7 @@ import lzma
 import os
 import shutil
 import subprocess
+import email.utils
 import sys
 from pathlib import Path
 
@@ -70,9 +71,15 @@ FIELD_ORDER = [
 
 
 def build_packages(repo_url: str) -> bytes:
-    debs = sorted(PACKAGES_DIR.glob("*.deb"))
+    # Bỏ qua bản debug: Theos đặt tên chúng là <version>-N+debug, mà APT coi
+    # "0.2.0-2+debug" MỚI HƠN "0.2.0" — Sileo sẽ chào bản debug cho người dùng.
+    debs = sorted(p for p in PACKAGES_DIR.glob("*.deb") if "+debug" not in p.name)
+    skipped = sorted(p for p in PACKAGES_DIR.glob("*.deb") if "+debug" in p.name)
+    for p in skipped:
+        print(f"  - bỏ qua bản debug: {p.name}")
     if not debs:
-        sys.exit("Không tìm thấy .deb nào trong packages/ — chạy `make package FINALPACKAGE=1` trước.")
+        sys.exit("Không tìm thấy .deb phát hành nào trong packages/ — "
+                 "chạy `make package FINALPACKAGE=1` trước.")
 
     DEBS.mkdir(parents=True, exist_ok=True)
     for stale in DEBS.glob("*.deb"):
@@ -119,11 +126,22 @@ def write_indexes(packages: bytes) -> list:
     xz = lzma.compress(packages, format=lzma.FORMAT_XZ)
     (DOCS / "Packages.xz").write_bytes(xz)
     written.append(("Packages.xz", xz))
+
+    # zstd: Sileo và bootstrap Procursus ưu tiên định dạng này.
+    try:
+        zst = subprocess.run(["zstd", "-19", "-q", "-c"], input=packages,
+                             capture_output=True, check=True).stdout
+        (DOCS / "Packages.zst").write_bytes(zst)
+        written.append(("Packages.zst", zst))
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        print("  (bỏ qua Packages.zst — không có lệnh zstd)")
+
     return written
 
 
 def write_release(indexes: list) -> None:
     lines = [f"{k}: {v}" for k, v in REPO.items()]
+    lines.append("Date: " + email.utils.formatdate(usegmt=True))
 
     for algo, field in (("MD5sum", "MD5Sum"), ("SHA1", "SHA1"), ("SHA256", "SHA256")):
         lines.append(f"{field}:")
@@ -146,8 +164,11 @@ def main() -> None:
     write_release(indexes)
 
     print("\nXong:")
-    for path in ("Release", "Packages", "Packages.gz", "Packages.bz2", "Packages.xz"):
-        print(f"  docs/{path}  ({(DOCS / path).stat().st_size} bytes)")
+    for path in ("Release", "Packages", "Packages.gz", "Packages.bz2", "Packages.xz",
+                 "Packages.zst"):
+        target = DOCS / path
+        if target.exists():
+            print(f"  docs/{path}  ({target.stat().st_size} bytes)")
     if repo_url:
         print(f"\nThêm vào Sileo:  {repo_url}")
 

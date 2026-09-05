@@ -6,18 +6,22 @@ Codename: opencarplay
 Architectures: iphoneos-arm64
 Components: main
 Description: OpenCarPlay — dùng ứng dụng iOS trên màn hình CarPlay (rootless, iOS 18.6.x)
+Date: Sat, 05 Sep 2026 14:03:36 GMT
 MD5Sum:
- 508f8cb8860f0f5573bc354ceb2edead 941 Packages
- 4770f9e7eb28daecb3b5fb6aa1aac212 518 Packages.gz
- 2def9ea81b760ba6debdd6233155ac59 608 Packages.bz2
- c98d7d50437f3e19c5d5a8606dd33b61 588 Packages.xz
+ 895b19fc0b1f951a23a059030a2b17cb 941 Packages
+ b9f0f040672e94b689cc1ec06270486a 516 Packages.gz
+ 55634cf1cc5e576e65e5cb78fa83eea4 604 Packages.bz2
+ 91e35a7450f7ca99912ca6d5df491bb2 588 Packages.xz
+ a10a0a9d6e996ac6c4b3715cd111a0a1 518 Packages.zst
 SHA1:
- c1baa7bbea55637d78c7529843cf031f21e412cc 941 Packages
- f67dffcb68af48919e71bb1b2fbe6c3a3e6ce29a 518 Packages.gz
- 0949ec8e9644b89f827f376424f48980d5448b47 608 Packages.bz2
- a63a45dbe38370a09dfcae95ed20ab4c01acd335 588 Packages.xz
+ d027a2c483a7be178a96f4b327b5af02d0bbcca5 941 Packages
+ 884f453aaa0835b7da910195d81a5257e8ded537 516 Packages.gz
+ 2cd7a04877aac3891e00238d3dd197deb26dc6b4 604 Packages.bz2
+ bf7e4fb67f551b468947cf21c9ddb4639d0cc7a8 588 Packages.xz
+ ed9edc685393cdfa00baf1f5d051c92309797540 518 Packages.zst
 SHA256:
- fdfed7ecec19486c755542aa853592c2b1607303edbdf0d7bfbf31073caa532c 941 Packages
- fc1fe747b574ec7b38c11aa39a5b18eefed6e0fb7bbdf82eb29188b1b30484dd 518 Packages.gz
- 10a1e7ee32be6431dc23a9119b2a1f1854e319b1538fc72a529d4b5d757e132b 608 Packages.bz2
- 86a38dbd88efc4606f8d05b7ccad6682e8c3c6640f9788b53a89098f1ad4a21c 588 Packages.xz
+ 32c46403b3886bbc7f553286e11fd1b12e1f09b5b4e091f11b158017934cdc02 941 Packages
+ 6b83a8d932b3a1f376fd774de51babb30729dbfa2078ed7be71092fc117533ab 516 Packages.gz
+ d26a958a82efea75ffeeb40c93bf0c41dedf14dea4f82d38553dd9d5ce251c09 604 Packages.bz2
+ e36cf7768f3c0cef33d0343035d1e5d73961135000a47f3899130b33c21c85c9 588 Packages.xz
+ 89f018a482d51352c9f3467d6412576ab9bf25e9556165ec0291736c2ead7c87 518 Packages.zst
