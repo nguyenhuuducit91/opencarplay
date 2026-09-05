@@ -24,7 +24,7 @@ include $(THEOS_MAKE_PATH)/tweak.mk
 # --- APT repository cho Sileo (GitHub Pages) --------------------------------
 # Sinh docs/ từ các .deb trong packages/:
 #     make package FINALPACKAGE=1 && make repo
-REPO_URL ?= https://nguyenhuuducit91.github.io/OpenCarPlay
+REPO_URL ?= https://nguyenhuuducit91.github.io/opencarplay
 
 repo::
 	@OCP_REPO_URL=$(REPO_URL) python3 scripts/make_repo.py

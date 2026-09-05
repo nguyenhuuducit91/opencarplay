@@ -6,9 +6,9 @@ Section: Tweaks
 Depends: firmware (>= 18.0), ellekit
 Maintainer: nguyenhuuducit91 <nguyenhuuducit91@users.noreply.github.com>
 Author: nguyenhuuducit91 <nguyenhuuducit91@users.noreply.github.com>
-Depiction: https://nguyenhuuducit91.github.io/OpenCarPlay/depiction/opencarplay.html
-SileoDepiction: https://nguyenhuuducit91.github.io/OpenCarPlay/depiction/opencarplay.json
-Icon: https://nguyenhuuducit91.github.io/OpenCarPlay/CydiaIcon.png
+Depiction: https://nguyenhuuducit91.github.io/opencarplay/depiction/opencarplay.html
+SileoDepiction: https://nguyenhuuducit91.github.io/opencarplay/depiction/opencarplay.json
+Icon: https://nguyenhuuducit91.github.io/opencarplay/CydiaIcon.png
 Tag: role::hacker
 Filename: debs/com.opencarplay.tweak_0.3.0_iphoneos-arm64.deb
 Size: 28598
