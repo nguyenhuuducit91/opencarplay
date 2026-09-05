@@ -205,7 +205,9 @@ hay chính CarPlay dashboard lên màn hình xe.
   được kiểm chứng trên iOS 18.6**. iOS 18 có thêm lớp chính sách `CRCarPlayAppPolicy` mà dự án
   chưa giải mã (Q1–Q4 trong `RESEARCH.md`); nếu dashboard hỏi lớp đó thay vì đọc tuyên bố của
   ứng dụng thì cách hiện tại sẽ không có tác dụng. Tweak sẽ ghi log nói rõ điều đó thay vì im lặng.
-- Chạm vào icon trên dashboard chưa mở được app — cần Phase 8–9
+- Chạm icon trên dashboard sẽ mở ứng dụng **trên màn hình iPhone**, chưa phải trên màn hình xe.
+  Đây là bước trung gian có chủ ý: việc gắn giao diện ứng dụng lên màn hình xe (Phase 9) cần
+  toàn bộ chuỗi scene của SpringBoard, mà chuỗi đó chưa được kiểm chứng trên iOS 18.6 (Q5).
 - Một app chỉ chạy trên một màn hình tại một thời điểm; khi đang ở CarPlay, màn hình iPhone sẽ
   hiện placeholder
 - Ứng dụng video có DRM có thể tự chặn hiển thị trên màn hình ngoài — dự án **không** bypass DRM

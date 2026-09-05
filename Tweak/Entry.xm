@@ -1,6 +1,6 @@
 // OpenCarPlay — entry point.
 //
-// Phase 7: hook đầu tiên — đưa ứng dụng được phép lên dashboard CarPlay.
+// Phase 8: đưa ứng dụng lên dashboard và khởi chạy khi người dùng chạm icon.
 // nguyên tắc 1 (ARCHITECTURE.md): mặc định không làm gì.
 // Hook chỉ được cài khi: iOS trong phạm vi, đúng process, Enabled = YES,
 // ExperimentalDiscovery = YES, và probe xác nhận đủ class/selector.
@@ -18,6 +18,7 @@
 #import "OCPRuntimeSurvey.h"
 #import "OCPPreferences.h"
 #import "OCPAppRegistry.h"
+#import "OCPLaunchCoordinator.h"
 #import "OCPTransport.h"
 
 /// Định nghĩa trong Tweak/CarPlayApp/Hooks.xm.
@@ -87,17 +88,18 @@ extern void OCPInstallCarPlayHooks(void);
                 return;
             }
 
-            // SpringBoard: theo dõi kết nối CarPlay. Detector chỉ quan sát và ghi log,
-            // chưa thay đổi hành vi hệ thống.
+            // SpringBoard: theo dõi kết nối CarPlay và lắng nghe yêu cầu khởi chạy.
+            // Không hook gì trong SpringBoard — chỉ dùng đường khởi chạy chuẩn của hệ thống.
             dispatch_async(dispatch_get_main_queue(), ^{
                 @try {
                     [[OCPCarPlayDetector sharedDetector] start];
+                    [[OCPLaunchCoordinator sharedCoordinator] start];
                 } @catch (NSException *exception) {
-                    OCPLogError_(@"không khởi động được detector: %@", exception.reason);
+                    OCPLogError_(@"không khởi động được detector/coordinator: %@", exception.reason);
                 }
             });
 
-            OCPLogC(OCPLogCore, @"phase 7: registry + detector sẵn sàng (SpringBoard chưa hook gì)");
+            OCPLogC(OCPLogCore, @"phase 8: detector + launch coordinator sẵn sàng (SpringBoard không hook)");
         } @catch (NSException *exception) {
             OCPLogError_(@"ctor thất bại: %@ — %@", exception.name, exception.reason);
         }

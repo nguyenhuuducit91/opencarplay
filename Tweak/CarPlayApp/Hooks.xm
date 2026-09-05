@@ -14,6 +14,7 @@
 #import "OCPDiscoveryAdapter.h"
 #import "OCPLog.h"
 #import "OCPProbe.h"
+#import "OCPTransport.h"
 
 #pragma mark - Danh sách ứng dụng của dashboard
 
@@ -60,6 +61,44 @@
 
 %end
 
+#pragma mark - Chạm icon trên dashboard
+
+%group OCPLaunchInterception
+
+%hook CARApplicationLaunchInfo
+
+/// CarPlay dựng thông tin khởi chạy khi người dùng chạm một icon.
+///
+/// Với ứng dụng do OpenCarPlay đưa lên, để CarPlay tự khởi chạy là không dùng được:
+/// ứng dụng không có scene CarPlay nên hệ thống sẽ đi vào nhánh template và thất bại.
+/// Ta chặn nhánh đó và chuyển yêu cầu sang SpringBoard.
+///
+/// Ứng dụng CarPlay chính hãng đi qua %orig nguyên vẹn.
++ (id)launchInfoForApplication:(id)application withActivationSettings:(id)settings {
+    @try {
+        if ([OCPDiscoveryAdapter isOpenCarPlayApplication:application]) {
+            NSString *bundleIdentifier = [OCPProbe invoke:application
+                                                 selector:@"bundleIdentifier"];
+            if ([bundleIdentifier isKindOfClass:[NSString class]]) {
+                OCPLogError_(@"chạm icon OpenCarPlay: %@", bundleIdentifier);
+                [[OCPTransport sharedTransport]
+                    postMessage:OCPMessageLaunchApplication
+                        payload:@{ @"bundleIdentifier": bundleIdentifier }];
+                // Trả nil để CarPlay không tự khởi chạy theo nhánh template.
+                return nil;
+            }
+            OCPLogError_(@"không đọc được bundleIdentifier từ thông tin ứng dụng");
+        }
+    } @catch (NSException *exception) {
+        OCPLogError_(@"xử lý chạm icon thất bại: %@ — %@", exception.name, exception.reason);
+    }
+    return %orig;
+}
+
+%end
+
+%end
+
 #pragma mark - Cài đặt
 
 /// Gọi từ Entry.xm sau khi đã xác nhận process, phiên bản iOS và cấu hình.
@@ -90,6 +129,15 @@ void OCPInstallCarPlayHooks(void) {
                  respondsTo:@"_handleAppLibraryRefresh"]) {
             %init(OCPDashboardRefresh);
             OCPLogC(OCPLogApplication, @"đã hook -[_CARDashboardHomeViewController _handleAppLibraryRefresh]");
+        }
+
+        if ([OCPProbe metaClass:@"CARApplicationLaunchInfo"
+                     respondsTo:@"launchInfoForApplication:withActivationSettings:"]) {
+            %init(OCPLaunchInterception);
+            OCPLogError_(@"đã hook +[CARApplicationLaunchInfo launchInfoForApplication:...]");
+        } else {
+            OCPLogError_(@"+[CARApplicationLaunchInfo launchInfoForApplication:...] KHÔNG tồn tại "
+                         @"— chạm icon sẽ đi theo đường mặc định của CarPlay, xem RESEARCH.md Q2");
         }
     } @catch (NSException *exception) {
         OCPLogError_(@"cài hook CarPlay thất bại: %@ — %@", exception.name, exception.reason);
