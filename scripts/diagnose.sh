@@ -98,7 +98,29 @@ info "trên máy build:  idevicesyslog | grep -i opencarplay"
 info "trên thiết bị :  $JBROOT/usr/bin/log stream --predicate 'subsystem == \"com.opencarplay.tweak\"'"
 
 hr
-echo "9. CÔNG TẮC AN TOÀN"
+echo "9. KHẢO SÁT RUNTIME"
+PREFS="$JBROOT/var/mobile/Library/Preferences/com.opencarplay.plist"
+if [ -f "$PREFS" ]; then
+    ok "preferences: $PREFS"
+    for k in Enabled DebugLogging RuntimeSurvey SignalDiscovery; do
+        V=$(plutil -p "$PREFS" 2>/dev/null | grep -i "\"$k\"" | sed 's/.*=> *//')
+        info "  $k = ${V:-(chưa đặt)}"
+    done
+else
+    info "chưa có preferences — mọi tuỳ chọn dùng giá trị mặc định (tắt)"
+    info "bật khảo sát: tạo $PREFS với RuntimeSurvey = true rồi respring"
+fi
+SURVEYDIR=/var/mobile/Media/OpenCarPlay
+if [ -d "$SURVEYDIR" ]; then
+    N=$(ls "$SURVEYDIR"/survey-*.txt 2>/dev/null | wc -l)
+    ok "$N file khảo sát trong $SURVEYDIR"
+    info "lấy về máy build: ./scripts/fetch_survey.sh"
+else
+    info "chưa có file khảo sát nào"
+fi
+
+hr
+echo "10. CÔNG TẮC AN TOÀN"
 KILL="$JBROOT/var/mobile/Library/Preferences/com.opencarplay.disabled"
 if [ -f "$KILL" ]; then
     no "KILL SWITCH ĐANG BẬT — tweak sẽ không nạp. Xoá: rm $KILL"

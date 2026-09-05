@@ -159,9 +159,24 @@ idevicesyslog | grep -i opencarplay       # tương đương
 Danh mục log: `[OpenCarPlay] [CarPlay] [Application] [Rendering] [Touch] [Audio]
 [Compatibility] [Error]`.
 
-**Chế độ khám phá tín hiệu** (chỉ dùng khi nghiên cứu): đặt `SignalDiscovery = YES` trong plist
-để ghi lại mọi notification có tên liên quan tới CarPlay/display mà SpringBoard nhận được. Đây là
-cách trả lời câu hỏi Q8 trong `RESEARCH.md` bằng dữ liệu thật thay vì đoán tên notification.
+### Công cụ nghiên cứu
+
+Hai khoá trong plist, mặc định tắt, chỉ dùng khi cần thu thập bằng chứng runtime:
+
+| Khoá | Tác dụng |
+|---|---|
+| `SignalDiscovery` | Ghi lại mọi notification có tên liên quan tới CarPlay/display mà SpringBoard nhận được (mỗi tên một lần) — trả lời Q8 trong `RESEARCH.md` |
+| `RuntimeSurvey` | Khảo sát Objective-C runtime của process: class nào tồn tại theo tiền tố, selector và ivar của các class mà kiến trúc phụ thuộc — trả lời Q1–Q6 |
+
+Kết quả khảo sát ghi vào `/var/mobile/Media/OpenCarPlay/`, lấy về máy build qua USB
+**không cần SSH**:
+
+```bash
+./scripts/fetch_survey.sh
+```
+
+Đây là cách kiểm chứng xem chuỗi private API mà carplay-cast dùng trên iOS 14 còn tồn tại
+trên iOS 18.6.2 hay không, thay vì đoán.
 
 ## Known limitations
 

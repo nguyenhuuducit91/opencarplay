@@ -1,6 +1,6 @@
 // OpenCarPlay — entry point.
 //
-// Phase 4: thêm phát hiện kết nối CarPlay. Vẫn chưa cài đặt hook nào —
+// Phase 5: nhận diện process + khảo sát runtime. Vẫn chưa cài đặt hook nào —
 // nguyên tắc 1 (ARCHITECTURE.md): mặc định không làm gì.
 //
 // Copyright (C) 2026 OpenCarPlay contributors — GPLv3.
@@ -12,6 +12,8 @@
 #import "OCPCompatibility.h"
 #import "OCPProbe.h"
 #import "OCPCarPlayDetector.h"
+#import "OCPProcessIdentity.h"
+#import "OCPRuntimeSurvey.h"
 
 %ctor {
     @autoreleasepool {
@@ -38,13 +40,14 @@
 
             // 4. Chỉ hoạt động trong hai process đã dự tính. Filter plist đã lọc rồi,
             //    nhưng kiểm tra lại để không phụ thuộc vào cấu hình bên ngoài.
-            NSString *bundleID = [OCPCompatibility currentProcessBundleIdentifier];
-            BOOL isSpringBoard = [bundleID isEqualToString:OCPBundleIDSpringBoard];
-            BOOL isCarPlayApp  = [bundleID isEqualToString:OCPBundleIDCarPlayApp];
+            OCPProcessRole role = [OCPProcessIdentity currentRole];
+            BOOL isSpringBoard = (role == OCPProcessRoleSpringBoard);
+            BOOL isCarPlayApp  = (role == OCPProcessRoleCarPlayDashboard);
             if (!isSpringBoard && !isCarPlayApp) {
-                OCPLogC(OCPLogCore, @"process %@ không nằm trong phạm vi — bỏ qua", bundleID);
+                OCPLogC(OCPLogCore, @"%@ — ngoài phạm vi, bỏ qua", [OCPProcessIdentity summary]);
                 return;
             }
+            OCPLogError_(@"%@", [OCPProcessIdentity summary]);
 
             // 5. Thu thập bằng chứng runtime. Kết quả này là đầu vào cho Phase 4+
             //    (xem RESEARCH.md §7 — probe bổ sung cho Frida, chạy trong process thật).
@@ -52,10 +55,15 @@
             // DebugLogging còn tắt (thiết bị chưa có file preferences).
             [OCPProbe logFullReportAtCategory:OCPLogError];
 
+            // 6. Khảo sát runtime (chỉ khi bật RuntimeSurvey) — công cụ nghiên cứu trả lời
+            //    Q1-Q6 trong RESEARCH.md bằng dữ liệu từ chính iOS 18.6.2.
+            [OCPRuntimeSurvey runIfEnabled];
+
             if (isCarPlayApp) {
                 // Process này chỉ tồn tại khi CarPlay đang kết nối, nên chính việc dylib
-                // được nạp vào đây đã là một tín hiệu kết nối. Phase 5 sẽ khai thác điều đó.
-                OCPLogError_(@"nạp trong CarPlay.app — CarPlay đang kết nối");
+                // được nạp vào đây đã là một tín hiệu kết nối đáng tin — đáng tin hơn cả
+                // việc dò notification trong SpringBoard.
+                OCPLogError_(@"nạp trong CarPlay dashboard — CarPlay đang kết nối");
                 return;
             }
 
@@ -69,7 +77,7 @@
                 }
             });
 
-            OCPLogC(OCPLogCore, @"phase 4: theo dõi kết nối CarPlay (chưa hook gì)");
+            OCPLogC(OCPLogCore, @"phase 5: theo dõi kết nối CarPlay + khảo sát runtime (chưa hook gì)");
         } @catch (NSException *exception) {
             OCPLogError_(@"ctor thất bại: %@ — %@", exception.name, exception.reason);
         }
