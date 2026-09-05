@@ -10,12 +10,19 @@ include $(THEOS)/makefiles/common.mk
 
 BUNDLE_NAME = OpenCarPlayPrefs
 
-# Gộp cả lớp Core vào bundle — không phải vì cần chúng, mà vì ld64-609 sinh
-# LC_DYLD_CHAINED_FIXUPS RỖNG cho binary quá nhỏ. Dylib chính (nhiều mã, nhiều symbol)
-# lại có fixups hợp lệ. Thêm nội dung là cách rẻ nhất để kiểm chứng giả thuyết đó.
-OpenCarPlayPrefs_FILES = OCPPrefsEntry.m $(wildcard ../Core/*.m) $(wildcard ../Core/*.c)
+# Bundle phải thoả HAI điều kiện cùng lúc, mỗi cái ứng với một lần crash đã đo được:
+#
+#   1. KHÔNG khai báo lớp Objective-C nào. Superclass của lớp khai báo lúc biên dịch
+#      phải bind qua chained fixups arm64e, và đó là chỗ readClass() chết. Gộp các lớp
+#      Core vào đã tái hiện đúng lỗi này ở bản 0.25.0.
+#   2. Đủ lớn để ld64-609 sinh chained fixups có dữ liệu. Binary quá nhỏ thì nó sinh
+#      LC_DYLD_CHAINED_FIXUPS rỗng, và binary không bind được gì.
+#
+# Vì vậy chỉ gộp thêm mã C THUẦN (ocp_util.c) — đủ nội dung cho điều kiện 2 mà không
+# tạo ra lớp nào cho điều kiện 1.
+OpenCarPlayPrefs_FILES = OCPPrefsEntry.m ../Core/ocp_util.c
 OpenCarPlayPrefs_INSTALL_PATH = /Library/PreferenceBundles
-OpenCarPlayPrefs_FRAMEWORKS = Foundation UIKit
+OpenCarPlayPrefs_FRAMEWORKS = Foundation
 OpenCarPlayPrefs_CFLAGS = -fobjc-arc -Wall -I../Core -fno-ptrauth-calls -fno-ptrauth-returns \
                           -fno-ptrauth-indirect-gotos -fno-ptrauth-auth-traps
 

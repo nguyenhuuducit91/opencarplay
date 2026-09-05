@@ -48,9 +48,34 @@ def pac_count(path: Path) -> int:
     return -1
 
 
+def declares_objc_classes(path: Path) -> list:
+    """Tên các lớp Objective-C mà binary khai báo lúc biên dịch.
+
+    Với binary trong preference bundle, danh sách này PHẢI rỗng: superclass của lớp
+    khai báo lúc biên dịch phải bind qua chained fixups arm64e, và trên toolchain Linux
+    đó là chỗ readClass() chết khi Settings nạp bundle.
+    """
+    for tool in ("nm", "llvm-nm"):
+        try:
+            out = subprocess.run([tool, "-arch", "arm64e", str(path)],
+                                 capture_output=True, text=True, timeout=120).stdout
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            continue
+        return re.findall(r"^\S+ S _OBJC_CLASS_\$_(\w+)", out, re.M)
+    return []
+
+
 def check_macho(path: Path) -> list:
     problems = []
     data = path.read_bytes()
+
+    # Binary nằm trong .bundle được Settings dlopen; nó không được khai báo lớp nào.
+    if ".bundle/" in str(path):
+        declared = declares_objc_classes(path)
+        if declared:
+            problems.append(f"{path.name}: khai báo {len(declared)} lớp Objective-C "
+                            f"({', '.join(declared[:3])}...) — readClass() sẽ chết khi "
+                            f"Settings nạp bundle. Dựng lớp lúc chạy thay vì @interface.")
 
     for offset in slices(data):
         cpusubtype = struct.unpack_from("<i", data, offset + 8)[0]
