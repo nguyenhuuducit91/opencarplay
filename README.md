@@ -59,7 +59,8 @@ Sileo → Sources → thêm URL trên → cài **OpenCarPlay** → respring.
 3. Cài bằng Sileo (hoặc `dpkg -i`)
 4. Respring — chỉ cần khi thay đổi ảnh hưởng SpringBoard; thay đổi phía dashboard chỉ cần
    `killall -9 CarPlay`
-5. Bật OpenCarPlay trong **Settings → OpenCarPlay**
+5. Bật OpenCarPlay trong **Settings → OpenCarPlay**. Danh sách ứng dụng hiện sửa bằng Filza
+   trong `com.opencarplay.plist` — xem ghi chú bên dưới
 6. Cắm CarPlay
 7. Chọn app được phép
 
@@ -230,6 +231,13 @@ Dùng **Settings → OpenCarPlay**, hoặc sửa trực tiếp
 
 Bảng cài đặt ghi thẳng vào file đó và bắn Darwin notification, nên thay đổi có hiệu lực ngay
 mà không cần respring.
+
+**Bảng cài đặt không chứa mã máy** — cố ý. Bản trước có một binary định nghĩa lớp kế thừa
+`PSListController`; khi Settings nạp bundle, libobjc phải bind `_OBJC_CLASS_$_PSListController`
+qua chained fixups do toolchain Linux sinh ra và chết ngay trong `readClass`. Dylib chính không
+gặp lỗi này vì nó tra cứu mọi class qua `NSClassFromString` và không có external Objective-C
+class nào. Bảng cài đặt nay áp dụng đúng nguyên tắc đó: chỉ là `Root.plist` tĩnh do
+`PSListController` của hệ thống đọc. Đổi lại, việc chọn ứng dụng phải sửa file cấu hình thủ công.
 
 | Khoá | Mặc định | Ý nghĩa |
 |---|---|---|
