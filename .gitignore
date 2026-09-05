@@ -1,0 +1,23 @@
+# Theos build artifacts
+.theos/
+packages/
+obj/
+*.deb
+!docs/debs/*.deb
+*.dylib
+*.bundle
+
+# Runtime dumps (lớn, chứa binary hệ thống — không commit)
+dump/
+dsc/
+headers/
+
+# Logs
+*.log
+logs/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
