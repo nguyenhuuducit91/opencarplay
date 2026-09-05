@@ -6,7 +6,7 @@ Codename: opencarplay
 Architectures: iphoneos-arm64
 Components: main
 Description: OpenCarPlay — dùng ứng dụng iOS trên màn hình CarPlay (rootless, iOS 18.6.x)
-Date: Sat, 05 Sep 2026 15:46:13 GMT
+Date: Sat, 05 Sep 2026 15:47:23 GMT
 MD5Sum:
  8c956d56f2fc154313317bf6fa29cfd0 1103 Packages
  50b398e1947e27001cb7d8ba95f7bf37 584 Packages.gz

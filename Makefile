@@ -42,3 +42,8 @@ REPO_URL ?= https://nguyenhuuducit91.github.io/opencarplay
 
 repo::
 	@OCP_REPO_URL=$(REPO_URL) python3 scripts/make_repo.py
+
+# Build và cập nhật repo trong một lệnh — dùng cái này để không quên bước thứ hai.
+release::
+	@$(MAKE) package FINALPACKAGE=1
+	@$(MAKE) repo

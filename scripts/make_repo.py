@@ -152,6 +152,31 @@ def write_release(indexes: list) -> None:
     (DOCS / "Release").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def control_version() -> str:
+    """Version khai báo trong control — nguồn sự thật của bản đang phát triển."""
+    control = ROOT / "control"
+    if not control.exists():
+        return ""
+    for line in control.read_text().splitlines():
+        if line.startswith("Version:"):
+            return line.split(":", 1)[1].strip()
+    return ""
+
+
+def warn_if_stale(packages: bytes) -> None:
+    """Cảnh báo nếu repo không chứa bản mới nhất.
+
+    Đã xảy ra một lần: build xong, đẩy thẳng .deb sang thiết bị qua USB, quên chạy
+    make repo — người dùng thêm repo vào Sileo chỉ thấy bản cũ hơn.
+    """
+    declared = control_version()
+    if not declared:
+        return
+    if f"Version: {declared}".encode() not in packages:
+        print(f"\n  CẢNH BÁO: control khai báo {declared} nhưng repo không có bản đó.")
+        print(f"  Chạy 'make package FINALPACKAGE=1' trước rồi mới 'make repo'.")
+
+
 def main() -> None:
     repo_url = os.environ.get("OCP_REPO_URL", "").rstrip("/")
     if not repo_url:
@@ -162,6 +187,7 @@ def main() -> None:
     packages = build_packages(repo_url)
     indexes = write_indexes(packages)
     write_release(indexes)
+    warn_if_stale(packages)
 
     print("\nXong:")
     for path in ("Release", "Packages", "Packages.gz", "Packages.bz2", "Packages.xz",
