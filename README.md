@@ -232,12 +232,18 @@ Dùng **Settings → OpenCarPlay**, hoặc sửa trực tiếp
 Bảng cài đặt ghi thẳng vào file đó và bắn Darwin notification, nên thay đổi có hiệu lực ngay
 mà không cần respring.
 
-**Bảng cài đặt không chứa mã máy** — cố ý. Bản trước có một binary định nghĩa lớp kế thừa
-`PSListController`; khi Settings nạp bundle, libobjc phải bind `_OBJC_CLASS_$_PSListController`
-qua chained fixups do toolchain Linux sinh ra và chết ngay trong `readClass`. Dylib chính không
-gặp lỗi này vì nó tra cứu mọi class qua `NSClassFromString` và không có external Objective-C
-class nào. Bảng cài đặt nay áp dụng đúng nguyên tắc đó: chỉ là `Root.plist` tĩnh do
-`PSListController` của hệ thống đọc. Đổi lại, việc chọn ứng dụng phải sửa file cấu hình thủ công.
+**Bảng cài đặt không định nghĩa lớp Objective-C nào lúc biên dịch** — cố ý. Bản trước có một
+binary với lớp kế thừa `PSListController`; khi Settings nạp bundle, libobjc phải bind
+`_OBJC_CLASS_$_PSListController` để dựng superclass, việc bind đó đi qua chained fixups do
+toolchain Linux sinh ra, và nó chết ngay trong `readClass()` với `EXC_BREAKPOINT`.
+
+Dylib chính không gặp lỗi này vì nó tra cứu mọi class qua `NSClassFromString` và có đúng **0**
+external Objective-C class. Bảng cài đặt nay áp dụng cùng nguyên tắc: binary chỉ chứa hàm C và
+một constructor dựng lớp điều khiển bằng `objc_allocateClassPair` lúc chạy. `__objc_classlist`
+rỗng thì `readClass()` không có gì để hỏng.
+
+Đổi lại, bảng chỉ có các switch đọc/ghi qua cơ chế `defaults`; việc chọn ứng dụng phải sửa
+`AllowedApplications` trong file cấu hình bằng Filza.
 
 | Khoá | Mặc định | Ý nghĩa |
 |---|---|---|

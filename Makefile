@@ -28,6 +28,9 @@ OpenCarPlay_LDFLAGS += -Wl,-rpath,/Library/Frameworks
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
+SUBPROJECTS += Preferences
+include $(THEOS_MAKE_PATH)/aggregate.mk
+
 # Chuẩn hoá quyền trước khi đóng gói: umask của máy build (thường 002) để lại bit
 # group-write, không phù hợp cho file cài vào hệ thống.
 # Sửa phụ thuộc CydiaSubstrate.
