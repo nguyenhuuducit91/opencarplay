@@ -1,6 +1,6 @@
 // OpenCarPlay — entry point.
 //
-// Phase 9: đưa ứng dụng lên dashboard, khởi chạy, và gắn giao diện lên màn hình xe.
+// Phase 11: dashboard, khởi chạy, giao diện trên màn hình xe, quan sát âm thanh.
 //
 // Chuỗi điều kiện trước khi bất cứ thứ gì được kích hoạt — nguyên tắc 1 trong
 // ARCHITECTURE.md là mặc định không làm gì:
@@ -23,6 +23,7 @@
 #import "OCPAppRegistry.h"
 #import "OCPLaunchCoordinator.h"
 #import "OCPCrashGuard.h"
+#import "OCPAudioObserver.h"
 #import "OCPTransport.h"
 
 /// Định nghĩa trong Tweak/CarPlayApp/Hooks.xm.
@@ -106,13 +107,14 @@ extern void OCPInstallCarPlayHooks(void);
                 @try {
                     [[OCPCarPlayDetector sharedDetector] start];
                     [[OCPLaunchCoordinator sharedCoordinator] start];
+                    [[OCPAudioObserver sharedObserver] start];
                     [OCPCrashGuard markSessionHealthy];
                 } @catch (NSException *exception) {
                     OCPLogError_(@"không khởi động được detector/coordinator: %@", exception.reason);
                 }
             });
 
-            OCPLogC(OCPLogCore, @"phase 9: detector + launch coordinator + scene bridge sẵn sàng");
+            OCPLogC(OCPLogCore, @"phase 11: detector + coordinator + scene bridge + audio observer sẵn sàng");
         } @catch (NSException *exception) {
             OCPLogError_(@"ctor thất bại: %@ — %@", exception.name, exception.reason);
         }

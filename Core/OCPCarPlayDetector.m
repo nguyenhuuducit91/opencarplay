@@ -15,6 +15,7 @@
 #import "OCPDisplayConfiguration.h"
 #import "OCPLog.h"
 #import "OCPProbe.h"
+#import "OCPAudioObserver.h"
 
 NSString *const OCPCarPlayDidConnectNotification = @"com.opencarplay.carplay-connected";
 NSString *const OCPCarPlayDidDisconnectNotification = @"com.opencarplay.carplay-disconnected";
@@ -202,12 +203,14 @@ static const NSTimeInterval kEvaluationDebounce = 0.35;
 
         if (connected) {
             OCPLogError_(@"CarPlay CONNECTED — %@", [configuration summary]);
+            [[OCPAudioObserver sharedObserver] logCurrentRouteWithContext:@"khi CarPlay kết nối"];
             [[NSNotificationCenter defaultCenter]
                 postNotificationName:OCPCarPlayDidConnectNotification
                               object:self
                             userInfo:@{ @"summary": [configuration summary] }];
         } else {
             OCPLogError_(@"CarPlay DISCONNECTED");
+            [[OCPAudioObserver sharedObserver] logCurrentRouteWithContext:@"khi CarPlay ngắt"];
             [[NSNotificationCenter defaultCenter]
                 postNotificationName:OCPCarPlayDidDisconnectNotification
                               object:self

@@ -168,6 +168,11 @@ Khi ứng dụng đang hiển thị trên màn hình xe, danh mục `[Touch]` ch
 đâu — thanh điều khiển thấy chạm, tầng display thấy chạm, hay không tầng nào thấy. Ba trường
 hợp đó chỉ tới ba nguyên nhân khác nhau.
 
+Danh mục `[Audio]` ghi lại tuyến âm thanh tại bốn thời điểm: khi CarPlay kết nối, khi ngắt, khi
+ứng dụng được gắn lên màn hình xe và khi đóng. OpenCarPlay **không bao giờ** thay đổi cấu hình
+âm thanh — nó chỉ đọc, để bạn xác nhận được rằng tweak không phá ducking, chỉ dẫn dẫn đường hay
+cuộc gọi của xe.
+
 ### Công cụ nghiên cứu
 
 Hai khoá trong plist, mặc định tắt, chỉ dùng khi cần thu thập bằng chứng runtime:

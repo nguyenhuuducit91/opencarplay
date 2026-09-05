@@ -15,6 +15,7 @@
 #import "OCPCarPlayWindow.h"
 #import "OCPDisplayConfiguration.h"
 #import "OCPSceneBridge.h"
+#import "OCPAudioObserver.h"
 
 /// SBSLaunchApplicationWithIdentifier(CFStringRef identifier, Boolean suspended) -> int
 /// Symbol công khai của SpringBoardServices; 0 nghĩa là thành công.
@@ -253,6 +254,12 @@ typedef int (*OCPLaunchFunction)(CFStringRef, Boolean);
 
     self.sceneBridge = bridge;
     self.carPlayWindow = window;
+
+    // Xác nhận kết luận trong RESEARCH.md §6: ứng dụng không tự đổi tuyến âm thanh,
+    // hệ thống đã trỏ sẵn về xe khi CarPlay kết nối. Chỉ ghi lại, không can thiệp.
+    [[OCPAudioObserver sharedObserver] logCurrentRouteWithContext:
+        @"sau khi gắn ứng dụng lên màn hình xe"];
+
     OCPLogError_(@"%@ đang hiển thị trên MÀN HÌNH XE — chạm vào thanh điều khiển bên trái "
                  @"để xác minh touch routing và để thoát", bundleIdentifier);
     return YES;
@@ -266,6 +273,8 @@ typedef int (*OCPLaunchFunction)(CFStringRef, Boolean);
     [self.carPlayWindow dismiss];
     self.sceneBridge = nil;
     self.carPlayWindow = nil;
+    [[OCPAudioObserver sharedObserver] logCurrentRouteWithContext:
+        @"sau khi đóng ứng dụng trên màn hình xe"];
     OCPLogC(OCPLogRendering, @"đã đóng ứng dụng trên màn hình xe");
 }
 
