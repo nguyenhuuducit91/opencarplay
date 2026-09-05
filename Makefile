@@ -64,7 +64,14 @@ after-stage::
 			/var/jb/Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate \
 			$$dylib || exit 1; \
 		python3 scripts/weaken_substrate.py $$dylib || exit 1; \
+		python3 scripts/mark_arm64e.py $$dylib || exit 1; \
 		ldid -S $$dylib || exit 1; \
+	done
+	@for bundle in `find $(THEOS_STAGING_DIR) -name '*.bundle' -type d`; do \
+		name=`basename $$bundle .bundle`; \
+		[ -f "$$bundle/$$name" ] || continue; \
+		python3 scripts/mark_arm64e.py "$$bundle/$$name" || exit 1; \
+		ldid -S "$$bundle/$$name" || exit 1; \
 	done
 	@find $(THEOS_STAGING_DIR) -type d -exec chmod 755 {} +
 	@find $(THEOS_STAGING_DIR) -type f -exec chmod 644 {} +

@@ -89,12 +89,31 @@ make package FINALPACKAGE=1 && make repo
 `scripts/make_repo.py` sinh `Packages`, `Packages.{gz,bz2,xz}` và `Release`, chỉ dùng thư viện
 chuẩn của Python — không cần `dpkg-dev` hay `apt-utils`.
 
-**Chỉ build `arm64`, không `arm64e`.** Toolchain Linux hiện dùng (clang 13 + ld64-609) tạo ra
-arm64e slice không tương thích pointer authentication của iOS 18.6: lời gọi Objective-C đầu tiên
-đã chết với `EXC_BAD_ACCESS ... possible pointer authentication failure`. Process arm64e trên iOS
-nạp được dylib arm64, nên bỏ slice arm64e là cách khắc phục — đánh đổi là tweak không được PAC
-bảo vệ. Muốn có lại arm64e thì cần toolchain sinh đúng ABI (Xcode trên macOS), không phải sửa
-mã nguồn.
+### Vì sao build arm64 rồi đánh dấu thành arm64e
+
+Trên A12 trở lên, process hệ thống là arm64e và dyld từ chối thư viện arm64:
+
+```
+mach-o file, but is an incompatible architecture (have 'arm64', need 'arm64e')
+```
+
+Nhưng toolchain Linux hiện có (clang 13 + ld64-609) sinh ra arm64e slice **không tương thích
+pointer authentication** của iOS 18.6 — lời gọi Objective-C đầu tiên đã chết:
+
+```
+EXC_BAD_ACCESS ... possible pointer authentication failure
+  libobjc     objc_msgSend
+  Foundation  NSClassFromString
+```
+
+Lối ra: biên dịch code **arm64 thuần** (không chứa lệnh PAC nào, con trỏ metadata không ký) rồi
+chỉ đổi `cpusubtype` trong header thành arm64e — `scripts/mark_arm64e.py`, chạy tự động trong
+`after-stage` rồi ký lại bằng `ldid`. CPU arm64e chạy lệnh arm64 bình thường; thay đổi duy nhất
+là dyld chấp nhận nạp. Slice giữ binding cổ điển (`LC_DYLD_INFO_ONLY`) chứ không phải chained
+fixups, nên dyld không đi vào nhánh ký con trỏ vốn là chỗ hỏng.
+
+Đánh đổi: thư viện không được PAC bảo vệ. Có Xcode trên macOS thì nên build arm64e thật và bỏ
+bước này.
 
 ## Development
 
