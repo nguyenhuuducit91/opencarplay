@@ -45,8 +45,19 @@ OpenCarPlay_LDFLAGS += -Wl,-rpath,/Library/Frameworks
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
-SUBPROJECTS += Preferences
-include $(THEOS_MAKE_PATH)/aggregate.mk
+# Preference bundle tạm thời bị loại khỏi bản dựng.
+#
+# ld64-609 của toolchain Linux sinh ra LC_DYLD_CHAINED_FIXUPS RỖNG (datasize = 0) cho
+# binary của bundle, trong khi dylib chính lại có dữ liệu hợp lệ (1440 byte). Binary với
+# chained fixups rỗng không bind được gì, nên Settings chết ngay khi dlopen nó — dù bundle
+# không khai báo lớp nào, dù đã tắt sinh lệnh PAC.
+#
+# Bỏ bundle ra khỏi gói để phần còn lại có cơ hội chạy. Cấu hình dùng file plist trực tiếp.
+# Muốn có lại bảng cài đặt thì cần toolchain sinh được chained fixups hợp lệ — thực tế là
+# Xcode trên macOS.
+#
+# SUBPROJECTS += Preferences
+# include $(THEOS_MAKE_PATH)/aggregate.mk
 
 # Chuẩn hoá quyền trước khi đóng gói: umask của máy build (thường 002) để lại bit
 # group-write, không phù hợp cho file cài vào hệ thống.
