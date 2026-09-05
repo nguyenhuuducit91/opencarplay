@@ -59,9 +59,7 @@ Sileo → Sources → thêm URL trên → cài **OpenCarPlay** → respring.
 3. Cài bằng Sileo (hoặc `dpkg -i`)
 4. Respring — chỉ cần khi thay đổi ảnh hưởng SpringBoard; thay đổi phía dashboard chỉ cần
    `killall -9 CarPlay`
-5. Bật OpenCarPlay: chép [`examples/com.opencarplay.plist`](examples/com.opencarplay.plist) tới
-   `/var/jb/var/mobile/Library/Preferences/com.opencarplay.plist` rồi respring
-   (bảng cài đặt trong Settings sẽ có ở Phase 12)
+5. Bật OpenCarPlay trong **Settings → OpenCarPlay**
 6. Cắm CarPlay
 7. Chọn app được phép
 
@@ -194,8 +192,12 @@ trên iOS 18.6.2 hay không, thay vì đoán.
 
 ### Cấu hình
 
+Dùng **Settings → OpenCarPlay**, hoặc sửa trực tiếp
 `/var/jb/var/mobile/Library/Preferences/com.opencarplay.plist` — xem
 [`examples/com.opencarplay.plist`](examples/com.opencarplay.plist).
+
+Bảng cài đặt ghi thẳng vào file đó và bắn Darwin notification, nên thay đổi có hiệu lực ngay
+mà không cần respring.
 
 | Khoá | Mặc định | Ý nghĩa |
 |---|---|---|

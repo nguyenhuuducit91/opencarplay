@@ -22,6 +22,9 @@ OpenCarPlay_LDFLAGS = -Wl,-segalign,4000
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
+SUBPROJECTS += Preferences
+include $(THEOS_MAKE_PATH)/aggregate.mk
+
 # --- APT repository cho Sileo (GitHub Pages) --------------------------------
 # Sinh docs/ từ các .deb trong packages/:
 #     make package FINALPACKAGE=1 && make repo
