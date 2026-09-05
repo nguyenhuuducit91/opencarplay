@@ -12,6 +12,9 @@ dump/
 dsc/
 headers/
 
+# Unit test binary
+tests/test_ocp_util
+
 # Logs
 *.log
 logs/
