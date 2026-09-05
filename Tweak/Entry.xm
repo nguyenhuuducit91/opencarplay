@@ -21,6 +21,7 @@
 
 #import <fcntl.h>
 #import <os/log.h>
+#import <sys/syslog.h>
 #import <stdlib.h>
 #import <string.h>
 #import <unistd.h>
@@ -182,8 +183,14 @@ static void OCPBootstrap(BOOL isSpringBoard, BOOL isCarPlayApp, int stage) {
 
     // Dòng log này là bằng chứng quan trọng nhất: nó cho biết constructor có chạy tới
     // đây không, và hai file điều khiển có đọc được từ trong sandbox của process không.
+    //
+    // Ghi bằng CẢ HAI đường: os_log là kênh chuẩn của hệ thống, còn syslog() luôn xuất
+    // hiện trong idevicesyslog qua cáp USB. Bản trước chỉ dùng os_log và không thấy gì
+    // trong log, mà điều đó không phân biệt được "dylib không nạp" với "log bị lọc".
     os_log(OS_LOG_DEFAULT,
            "[OpenCarPlay] ctor: process=%{public}s killswitch=%d stage=%d",
+           processName, killSwitch, stage);
+    syslog(LOG_ERR, "[OpenCarPlay] ctor: process=%s killswitch=%d stage=%d",
            processName, killSwitch, stage);
 
     if (killSwitch != 0) return;

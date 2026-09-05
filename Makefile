@@ -45,7 +45,9 @@ OpenCarPlay_LDFLAGS += -Wl,-rpath,/Library/Frameworks
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
-# Preference bundle tạm thời bị loại khỏi bản dựng.
+# Preference bundle: xem Preferences/Makefile.
+#
+# GHI CHÚ CŨ (giữ lại vì lý do vẫn còn giá trị):
 #
 # ld64-609 của toolchain Linux sinh ra LC_DYLD_CHAINED_FIXUPS RỖNG (datasize = 0) cho
 # binary của bundle, trong khi dylib chính lại có dữ liệu hợp lệ (1440 byte). Binary với
@@ -56,8 +58,8 @@ include $(THEOS_MAKE_PATH)/tweak.mk
 # Muốn có lại bảng cài đặt thì cần toolchain sinh được chained fixups hợp lệ — thực tế là
 # Xcode trên macOS.
 #
-# SUBPROJECTS += Preferences
-# include $(THEOS_MAKE_PATH)/aggregate.mk
+SUBPROJECTS += Preferences
+include $(THEOS_MAKE_PATH)/aggregate.mk
 
 # Chuẩn hoá quyền trước khi đóng gói: umask của máy build (thường 002) để lại bit
 # group-write, không phù hợp cho file cài vào hệ thống.
@@ -98,4 +100,11 @@ repo::
 # Build và cập nhật repo trong một lệnh — dùng cái này để không quên bước thứ hai.
 release::
 	@$(MAKE) package FINALPACKAGE=1
+	@$(MAKE) verify
 	@$(MAKE) repo
+
+# Kiểm tra gói trước khi phát hành. Sinh ra sau khi tám bản liên tiếp được giao mà
+# không bản nào chạy — mỗi kiểm tra trong script ứng với một lỗi đã gặp thật.
+verify::
+	@PATH=$(THEOS)/toolchain/linux/iphone/bin:$$PATH \
+		python3 scripts/verify_package.py `ls -t packages/*.deb | head -1`
