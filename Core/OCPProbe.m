@@ -297,6 +297,43 @@
     }
 }
 
++ (BOOL)setValue:(nullable id)value forKey:(NSString *)key onObject:(nullable id)object {
+    if (object == nil || key.length == 0) return NO;
+    @try {
+        NSString *ivarName = [@"_" stringByAppendingString:key];
+        NSString *setterName = [NSString stringWithFormat:@"set%@%@:",
+                                [key substringToIndex:1].uppercaseString,
+                                [key substringFromIndex:1]];
+        SEL setter = NSSelectorFromString(setterName);
+
+        BOOL hasIvar = [self object:object hasIvar:key] || [self object:object hasIvar:ivarName];
+        BOOL hasSetter = (setter != NULL && [object respondsToSelector:setter]);
+        if (!hasIvar && !hasSetter) {
+            OCPLogC(OCPLogCompatibility, @"không ghi được %@ trên %@ — không có ivar lẫn setter",
+                    key, NSStringFromClass([object class]));
+            return NO;
+        }
+
+        [object setValue:value forKey:key];
+        return YES;
+    } @catch (NSException *exception) {
+        OCPLogC(OCPLogCompatibility, @"ghi KVC %@ thất bại: %@", key, exception.reason);
+        return NO;
+    }
+}
+
++ (nullable id)instantiateClassNamed:(NSString *)className {
+    Class cls = [self classNamed:className];
+    if (cls == Nil) return nil;
+    @try {
+        id instance = [[cls alloc] init];
+        return instance;
+    } @catch (NSException *exception) {
+        OCPLogError_(@"khởi tạo %@ thất bại: %@", className, exception.reason);
+        return nil;
+    }
+}
+
 + (NSDictionary<NSString *, NSNumber *> *)diagnosticsReport {
     NSMutableDictionary<NSString *, NSNumber *> *report = [NSMutableDictionary dictionary];
     for (NSInteger i = 0; i < OCPFeatureCount; i++) {

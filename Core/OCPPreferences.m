@@ -93,6 +93,9 @@ NSString *const OCPPreferencesDidChangeNotification = @"OCPPreferencesDidChangeN
 - (BOOL)debugLogging     { return [self boolForKey:@"DebugLogging"     defaultValue:NO]; }
 - (BOOL)runtimeSurvey    { return [self boolForKey:@"RuntimeSurvey"    defaultValue:NO]; }
 - (BOOL)signalDiscovery  { return [self boolForKey:@"SignalDiscovery"  defaultValue:NO]; }
+- (BOOL)experimentalDiscovery {
+    return [self boolForKey:@"ExperimentalDiscovery" defaultValue:NO];
+}
 
 - (NSArray<NSString *> *)allowedApplications {
     id value = self.cache[@"AllowedApplications"];
@@ -153,18 +156,21 @@ NSString *const OCPPreferencesDidChangeNotification = @"OCPPreferencesDidChangeN
         @"DebugLogging":        @(self.debugLogging),
         @"RuntimeSurvey":       @(self.runtimeSurvey),
         @"SignalDiscovery":     @(self.signalDiscovery),
+        @"ExperimentalDiscovery": @(self.experimentalDiscovery),
         @"FileExists":          @(self.fileExists),
     };
 }
 
 - (NSString *)summary {
     if (!self.fileExists) return @"chưa có file cấu hình (mọi tuỳ chọn tắt)";
-    return [NSString stringWithFormat:@"Enabled=%@ apps=%lu debug=%@ survey=%@ discovery=%@",
+    return [NSString stringWithFormat:
+            @"Enabled=%@ apps=%lu debug=%@ survey=%@ signals=%@ experimental=%@",
             self.enabled ? @"YES" : @"NO",
             (unsigned long)self.allowedApplications.count,
             self.debugLogging ? @"YES" : @"NO",
             self.runtimeSurvey ? @"YES" : @"NO",
-            self.signalDiscovery ? @"YES" : @"NO"];
+            self.signalDiscovery ? @"YES" : @"NO",
+            self.experimentalDiscovery ? @"YES" : @"NO"];
 }
 
 @end

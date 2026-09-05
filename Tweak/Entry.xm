@@ -1,7 +1,9 @@
 // OpenCarPlay — entry point.
 //
-// Phase 6: thêm preferences + danh sách ứng dụng. Vẫn chưa cài đặt hook nào —
+// Phase 7: hook đầu tiên — đưa ứng dụng được phép lên dashboard CarPlay.
 // nguyên tắc 1 (ARCHITECTURE.md): mặc định không làm gì.
+// Hook chỉ được cài khi: iOS trong phạm vi, đúng process, Enabled = YES,
+// ExperimentalDiscovery = YES, và probe xác nhận đủ class/selector.
 //
 // Copyright (C) 2026 OpenCarPlay contributors — GPLv3.
 
@@ -17,6 +19,9 @@
 #import "OCPPreferences.h"
 #import "OCPAppRegistry.h"
 #import "OCPTransport.h"
+
+/// Định nghĩa trong Tweak/CarPlayApp/Hooks.xm.
+extern void OCPInstallCarPlayHooks(void);
 
 %ctor {
     @autoreleasepool {
@@ -92,7 +97,7 @@
                 }
             });
 
-            OCPLogC(OCPLogCore, @"phase 6: registry + detector sẵn sàng (chưa hook gì)");
+            OCPLogC(OCPLogCore, @"phase 7: registry + detector sẵn sàng (SpringBoard chưa hook gì)");
         } @catch (NSException *exception) {
             OCPLogError_(@"ctor thất bại: %@ — %@", exception.name, exception.reason);
         }

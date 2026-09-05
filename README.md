@@ -193,6 +193,7 @@ trên iOS 18.6.2 hay không, thay vì đoán.
 | `HideStatusBar` / `FullScreen` | `NO` | Trình bày trên màn hình xe |
 | `ForceLandscape` | `YES` | Ép app xoay ngang |
 | `DebugLogging` | `NO` | Ghi log đầy đủ thay vì chỉ lỗi |
+| `ExperimentalDiscovery` | `NO` | **Thử nghiệm** — đưa app trong danh sách lên dashboard CarPlay |
 
 Mục nhập sai (chuỗi rác, process hệ thống) bị loại khi nạp và ghi log kèm lý do — danh sách
 chặn cứng luôn thắng danh sách cho phép, nên một dòng cấu hình sai không thể đưa SpringBoard
@@ -200,8 +201,11 @@ hay chính CarPlay dashboard lên màn hình xe.
 
 ## Known limitations
 
-- Chưa đưa được app lên CarPlay — Phase 7 bị chặn bởi Q1–Q4 (lớp `CRCarPlayAppPolicy` mới của
-  iOS 18 chưa được giải mã)
+- Việc đưa app lên dashboard (`ExperimentalDiscovery`) dựa trên cơ chế của iOS 14 và **chưa
+  được kiểm chứng trên iOS 18.6**. iOS 18 có thêm lớp chính sách `CRCarPlayAppPolicy` mà dự án
+  chưa giải mã (Q1–Q4 trong `RESEARCH.md`); nếu dashboard hỏi lớp đó thay vì đọc tuyên bố của
+  ứng dụng thì cách hiện tại sẽ không có tác dụng. Tweak sẽ ghi log nói rõ điều đó thay vì im lặng.
+- Chạm vào icon trên dashboard chưa mở được app — cần Phase 8–9
 - Một app chỉ chạy trên một màn hình tại một thời điểm; khi đang ở CarPlay, màn hình iPhone sẽ
   hiện placeholder
 - Ứng dụng video có DRM có thể tự chặn hiển thị trên màn hình ngoài — dự án **không** bypass DRM

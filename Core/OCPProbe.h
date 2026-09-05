@@ -81,6 +81,12 @@ typedef NS_ENUM(NSInteger, OCPFeature) {
 /// và nuốt exception nếu class từ chối KVC.
 + (nullable id)valueForKey:(NSString *)key onObject:(nullable id)object;
 
+/// Ghi giá trị qua KVC, an toàn tương tự. Trả NO nếu không ghi được.
++ (BOOL)setValue:(nullable id)value forKey:(NSString *)key onObject:(nullable id)object;
+
+/// Tạo instance của một private class bằng +alloc/-init. nil nếu class không tồn tại.
++ (nullable id)instantiateClassNamed:(NSString *)className;
+
 /// Ghi toàn bộ kết quả probe ra log (danh mục Compatibility).
 /// Đây là công cụ thu thập bằng chứng runtime chính của dự án — xem RESEARCH.md §7.
 + (void)logFullReport;

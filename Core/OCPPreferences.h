@@ -36,6 +36,11 @@ FOUNDATION_EXPORT NSString *const OCPPreferencesDidChangeNotification;
 @property (nonatomic, readonly) BOOL runtimeSurvey;
 @property (nonatomic, readonly) BOOL signalDiscovery;
 
+/// Cổng riêng cho phần đưa ứng dụng lên dashboard. Tách khỏi `enabled` vì đây là
+/// phần đầu tiên thực sự thay đổi hành vi CarPlay và chưa được kiểm chứng trên
+/// thiết bị thật — người dùng phải bật tường minh.
+@property (nonatomic, readonly) BOOL experimentalDiscovery;
+
 /// File preferences có tồn tại không (phân biệt "chưa cấu hình" với "cấu hình tắt").
 @property (nonatomic, readonly) BOOL fileExists;
 

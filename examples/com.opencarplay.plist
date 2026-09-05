@@ -42,5 +42,12 @@
 	<true/>
 	<key>SignalDiscovery</key>
 	<true/>
+
+	<!-- THỬ NGHIỆM: đưa ứng dụng trong AllowedApplications lên dashboard CarPlay.
+	     Tách riêng khỏi Enabled vì đây là phần đầu tiên thực sự thay đổi hành vi
+	     CarPlay và chưa được kiểm chứng trên thiết bị thật. Nếu dashboard có vấn đề,
+	     đặt lại false rồi killall -9 CarPlay là mọi thứ trở lại nguyên bản. -->
+	<key>ExperimentalDiscovery</key>
+	<false/>
 </dict>
 </plist>
