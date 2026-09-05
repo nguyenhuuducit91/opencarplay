@@ -184,6 +184,119 @@
     }
 }
 
+#pragma mark - Gọi private API an toàn
+
++ (nullable NSInvocation *)invocationFor:(id)target selector:(SEL)selector {
+    if (target == nil || selector == NULL) return nil;
+    NSMethodSignature *signature = [target methodSignatureForSelector:selector];
+    if (signature == nil) return nil;
+
+    NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
+    invocation.selector = selector;
+    invocation.target = target;
+    return invocation;
+}
+
+/// Kiểu trả về của signature có phải object không (@ hoặc #)?
++ (BOOL)signatureReturnsObject:(NSMethodSignature *)signature {
+    const char *type = signature.methodReturnType;
+    return type != NULL && (type[0] == '@' || type[0] == '#');
+}
+
++ (nullable id)invoke:(nullable id)target selector:(NSString *)selectorName {
+    return [self invoke:target selector:selectorName withObject:nil hasArgument:NO];
+}
+
++ (nullable id)invoke:(nullable id)target
+             selector:(NSString *)selectorName
+           withObject:(nullable id)argument {
+    return [self invoke:target selector:selectorName withObject:argument hasArgument:YES];
+}
+
++ (nullable id)invoke:(nullable id)target
+             selector:(NSString *)selectorName
+           withObject:(nullable id)argument
+          hasArgument:(BOOL)hasArgument {
+    if (target == nil || selectorName.length == 0) return nil;
+
+    @try {
+        SEL selector = NSSelectorFromString(selectorName);
+        if (selector == NULL || ![target respondsToSelector:selector]) {
+            OCPLogC(OCPLogCompatibility, @"selector không tồn tại: %@ trên %@",
+                    selectorName, NSStringFromClass([target class]));
+            return nil;
+        }
+
+        NSInvocation *invocation = [self invocationFor:target selector:selector];
+        if (invocation == nil) return nil;
+        if (![self signatureReturnsObject:invocation.methodSignature]) {
+            OCPLogC(OCPLogCompatibility, @"%@ không trả về object — dùng biến thể đúng kiểu",
+                    selectorName);
+            return nil;
+        }
+        if (hasArgument) {
+            if (invocation.methodSignature.numberOfArguments < 3) return nil;
+            [invocation setArgument:&argument atIndex:2];
+        }
+
+        [invocation invoke];
+
+        __unsafe_unretained id result = nil;
+        [invocation getReturnValue:&result];
+        return result;
+    } @catch (NSException *exception) {
+        OCPLogError_(@"gọi %@ thất bại: %@", selectorName, exception.reason);
+        return nil;
+    }
+}
+
++ (nullable id)invokeClass:(NSString *)className selector:(NSString *)selectorName {
+    Class cls = [self classNamed:className];
+    if (cls == Nil) return nil;
+    return [self invoke:cls selector:selectorName];
+}
+
++ (BOOL)invokeBool:(nullable id)target
+          selector:(NSString *)selectorName
+          fallback:(BOOL)fallback {
+    if (target == nil || selectorName.length == 0) return fallback;
+
+    @try {
+        SEL selector = NSSelectorFromString(selectorName);
+        if (selector == NULL || ![target respondsToSelector:selector]) return fallback;
+
+        NSInvocation *invocation = [self invocationFor:target selector:selector];
+        if (invocation == nil) return fallback;
+
+        const char *type = invocation.methodSignature.methodReturnType;
+        if (type == NULL || (type[0] != 'B' && type[0] != 'c' && type[0] != 'i')) return fallback;
+
+        [invocation invoke];
+        // BOOL/char/int đều vừa trong NSInteger; đọc theo kích thước thật để tránh rác.
+        NSInteger raw = 0;
+        [invocation getReturnValue:&raw];
+        return (raw & 0xff) != 0;
+    } @catch (NSException *exception) {
+        OCPLogError_(@"gọi bool %@ thất bại: %@", selectorName, exception.reason);
+        return fallback;
+    }
+}
+
++ (nullable id)valueForKey:(NSString *)key onObject:(nullable id)object {
+    if (object == nil || key.length == 0) return nil;
+    @try {
+        NSString *ivarName = [@"_" stringByAppendingString:key];
+        if (![self object:object hasIvar:key] && ![self object:object hasIvar:ivarName]) {
+            SEL getter = NSSelectorFromString(key);
+            if (getter == NULL || ![object respondsToSelector:getter]) return nil;
+        }
+        return [object valueForKey:key];
+    } @catch (NSException *exception) {
+        OCPLogC(OCPLogCompatibility, @"KVC %@ thất bại: %@", key, exception.reason);
+        return nil;
+    }
+}
+
 + (NSDictionary<NSString *, NSNumber *> *)diagnosticsReport {
     NSMutableDictionary<NSString *, NSNumber *> *report = [NSMutableDictionary dictionary];
     for (NSInteger i = 0; i < OCPFeatureCount; i++) {

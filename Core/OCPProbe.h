@@ -57,6 +57,30 @@ typedef NS_ENUM(NSInteger, OCPFeature) {
 /// Bảng kết quả đầy đủ: tên tính năng -> @(BOOL). Dùng cho diagnose.
 + (NSDictionary<NSString *, NSNumber *> *)diagnosticsReport;
 
+#pragma mark - Gọi private API an toàn
+
+/// Gọi selector không tham số trên một object. Trả nil nếu selector không tồn tại,
+/// nếu kiểu trả về không phải object, hoặc nếu lời gọi ném exception.
+/// Dùng NSInvocation thay vì ép kiểu objc_msgSend — an toàn hơn trên arm64e (PAC).
++ (nullable id)invoke:(nullable id)target selector:(NSString *)selectorName;
+
+/// Như trên, với một tham số object.
++ (nullable id)invoke:(nullable id)target
+             selector:(NSString *)selectorName
+           withObject:(nullable id)argument;
+
+/// Gọi class method không tham số.
++ (nullable id)invokeClass:(NSString *)className selector:(NSString *)selectorName;
+
+/// Gọi selector trả về BOOL. `fallback` được dùng khi không gọi được.
++ (BOOL)invokeBool:(nullable id)target
+          selector:(NSString *)selectorName
+          fallback:(BOOL)fallback;
+
+/// Đọc ivar/property bằng KVC nhưng an toàn: kiểm tra ivar tồn tại trước,
+/// và nuốt exception nếu class từ chối KVC.
++ (nullable id)valueForKey:(NSString *)key onObject:(nullable id)object;
+
 /// Ghi toàn bộ kết quả probe ra log (danh mục Compatibility).
 /// Đây là công cụ thu thập bằng chứng runtime chính của dự án — xem RESEARCH.md §7.
 + (void)logFullReport;

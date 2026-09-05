@@ -159,6 +159,10 @@ idevicesyslog | grep -i opencarplay       # tương đương
 Danh mục log: `[OpenCarPlay] [CarPlay] [Application] [Rendering] [Touch] [Audio]
 [Compatibility] [Error]`.
 
+**Chế độ khám phá tín hiệu** (chỉ dùng khi nghiên cứu): đặt `SignalDiscovery = YES` trong plist
+để ghi lại mọi notification có tên liên quan tới CarPlay/display mà SpringBoard nhận được. Đây là
+cách trả lời câu hỏi Q8 trong `RESEARCH.md` bằng dữ liệu thật thay vì đoán tên notification.
+
 ## Known limitations
 
 - Chưa đưa được app lên CarPlay — Phase 7 bị chặn bởi Q1–Q4 (lớp `CRCarPlayAppPolicy` mới của

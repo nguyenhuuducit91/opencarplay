@@ -1,6 +1,6 @@
 // OpenCarPlay — entry point.
 //
-// Phase 3: phát hiện môi trường, logging, probe khả năng. Vẫn chưa cài đặt hook nào —
+// Phase 4: thêm phát hiện kết nối CarPlay. Vẫn chưa cài đặt hook nào —
 // nguyên tắc 1 (ARCHITECTURE.md): mặc định không làm gì.
 //
 // Copyright (C) 2026 OpenCarPlay contributors — GPLv3.
@@ -11,6 +11,7 @@
 #import "OCPLog.h"
 #import "OCPCompatibility.h"
 #import "OCPProbe.h"
+#import "OCPCarPlayDetector.h"
 
 %ctor {
     @autoreleasepool {
@@ -51,8 +52,24 @@
             // DebugLogging còn tắt (thiết bị chưa có file preferences).
             [OCPProbe logFullReportAtCategory:OCPLogError];
 
-            OCPLogC(OCPLogCore, @"phase 3: chưa cài hook nào (%@)",
-                    isSpringBoard ? @"SpringBoard" : @"CarPlayApp");
+            if (isCarPlayApp) {
+                // Process này chỉ tồn tại khi CarPlay đang kết nối, nên chính việc dylib
+                // được nạp vào đây đã là một tín hiệu kết nối. Phase 5 sẽ khai thác điều đó.
+                OCPLogError_(@"nạp trong CarPlay.app — CarPlay đang kết nối");
+                return;
+            }
+
+            // SpringBoard: theo dõi kết nối CarPlay. Detector chỉ quan sát và ghi log,
+            // chưa thay đổi hành vi hệ thống.
+            dispatch_async(dispatch_get_main_queue(), ^{
+                @try {
+                    [[OCPCarPlayDetector sharedDetector] start];
+                } @catch (NSException *exception) {
+                    OCPLogError_(@"không khởi động được detector: %@", exception.reason);
+                }
+            });
+
+            OCPLogC(OCPLogCore, @"phase 4: theo dõi kết nối CarPlay (chưa hook gì)");
         } @catch (NSException *exception) {
             OCPLogError_(@"ctor thất bại: %@ — %@", exception.name, exception.reason);
         }
