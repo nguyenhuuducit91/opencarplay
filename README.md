@@ -89,8 +89,12 @@ make package FINALPACKAGE=1 && make repo
 `scripts/make_repo.py` sinh `Packages`, `Packages.{gz,bz2,xz}` và `Release`, chỉ dùng thư viện
 chuẩn của Python — không cần `dpkg-dev` hay `apt-utils`.
 
-Yêu cầu toolchain hỗ trợ **arm64e ABI có ptrauth versioning** — toolchain quá cũ sẽ tạo slice
-arm64e mà iOS 18 từ chối nạp. Xem [ARCHITECTURE.md §8](ARCHITECTURE.md).
+**Chỉ build `arm64`, không `arm64e`.** Toolchain Linux hiện dùng (clang 13 + ld64-609) tạo ra
+arm64e slice không tương thích pointer authentication của iOS 18.6: lời gọi Objective-C đầu tiên
+đã chết với `EXC_BAD_ACCESS ... possible pointer authentication failure`. Process arm64e trên iOS
+nạp được dylib arm64, nên bỏ slice arm64e là cách khắc phục — đánh đổi là tweak không được PAC
+bảo vệ. Muốn có lại arm64e thì cần toolchain sinh đúng ABI (Xcode trên macOS), không phải sửa
+mã nguồn.
 
 ## Development
 

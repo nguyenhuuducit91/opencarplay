@@ -4,7 +4,21 @@
 
 export THEOS_PACKAGE_SCHEME = rootless
 
-ARCHS = arm64 arm64e
+# CHỈ arm64 — KHÔNG arm64e.
+#
+# Toolchain Linux hiện có (clang 13 + ld64-609) tạo ra arm64e slice không tương thích
+# pointer authentication của iOS 18.6. Bằng chứng: crash report của Settings ghi rõ
+# "possible pointer authentication failure" ngay tại objc_msgSend, gọi từ
+# NSClassFromString trong constructor của bundle — tức lời gọi Objective-C ĐẦU TIÊN
+# đã chết. Cảnh báo "incompatible arm64e ABI compiler" của ld64 là có thật.
+#
+# Process arm64e trên iOS nạp được dylib arm64: code arm64 thuần chạy bình thường trên
+# CPU arm64e, chỉ là không có PAC. Đó là đánh đổi đúng — mất tăng cường bảo mật của
+# PAC trong tweak, đổi lấy việc nó chạy được.
+#
+# Muốn quay lại arm64e thì cần toolchain sinh arm64e đúng ABI (Xcode trên macOS, hoặc
+# một bản ld64 mới hơn), không phải sửa gì trong mã nguồn.
+ARCHS = arm64
 TARGET = iphone:clang:16.5:15.0
 
 INSTALL_TARGET_PROCESSES = SpringBoard CarPlay
