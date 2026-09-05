@@ -107,6 +107,53 @@ def check_macho(path: Path) -> list:
     return problems
 
 
+def check_layout(root: Path) -> list:
+    """Kiểm tra gói có đủ file mà iOS cần, không chỉ binary.
+
+    Sinh ra sau khi một bản được phát hành với thư mục PreferenceLoader rỗng và bundle
+    chỉ có binary — Settings không hiện mục nào mà cũng chẳng báo lỗi gì.
+    """
+    import plistlib
+
+    problems = []
+    bundles = list(root.rglob("*.bundle"))
+
+    for bundle in bundles:
+        info = bundle / "Info.plist"
+        if not info.exists():
+            problems.append(f"{bundle.name}: thiếu Info.plist")
+            continue
+        try:
+            data = plistlib.loads(info.read_bytes())
+        except Exception as error:
+            problems.append(f"{bundle.name}/Info.plist không đọc được: {error}")
+            continue
+
+        executable = data.get("CFBundleExecutable")
+        if executable and not (bundle / executable).exists():
+            problems.append(f"{bundle.name}: Info.plist khai báo {executable} nhưng không có file đó")
+        if not (bundle / "Root.plist").exists():
+            problems.append(f"{bundle.name}: thiếu Root.plist — bảng cài đặt sẽ trống")
+
+    # Bundle cài đặt phải có mục đăng ký với PreferenceLoader, nếu không Settings
+    # không hiện gì cả.
+    if any("PreferenceBundles" in str(b) for b in bundles):
+        entries = list(root.rglob("Library/PreferenceLoader/Preferences/*.plist"))
+        if not entries:
+            problems.append("có preference bundle nhưng thiếu mục trong "
+                            "Library/PreferenceLoader/Preferences — Settings sẽ không hiện gì")
+        for entry in entries:
+            try:
+                data = plistlib.loads(entry.read_bytes())
+            except Exception as error:
+                problems.append(f"{entry.name} không đọc được: {error}")
+                continue
+            if "entry" not in data:
+                problems.append(f"{entry.name}: thiếu khoá 'entry'")
+
+    return problems
+
+
 def main() -> None:
     if len(sys.argv) < 2:
         sys.exit("dùng: verify_package.py <file.deb> [...]")
@@ -122,6 +169,7 @@ def main() -> None:
                 head = path.read_bytes()[:4]
                 if head in (b"\xca\xfe\xba\xbe", b"\xcf\xfa\xed\xfe"):
                     all_problems += check_macho(path)
+            all_problems += check_layout(Path(tmp))
 
     print()
     if all_problems:
