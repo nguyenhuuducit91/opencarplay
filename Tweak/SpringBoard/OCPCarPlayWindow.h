@@ -27,7 +27,22 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, readonly) CGRect bounds;
 
 /// Đặt view nội dung (view của ứng dụng) vào cửa sổ và hiện nó lên.
+/// Nội dung được thu hẹp để chừa chỗ cho thanh điều khiển.
 - (BOOL)presentContentView:(UIView *)contentView;
+
+/// Gắn thanh điều khiển với nút thoát. Gọi trước presentContentView:.
+- (void)installControlOverlayWithDismissHandler:(void (^)(void))dismissHandler;
+
+/// Số lần thanh điều khiển nhận được chạm — dùng để xác minh touch routing.
+@property (nonatomic, readonly) NSUInteger overlayTouchCount;
+
+/// Đăng ký một gesture chỉ-quan-sát ở tầng display của màn hình xe.
+///
+/// Đây là lớp chẩn đoán độc lập với cây view: nếu tầng này thấy chạm mà thanh điều
+/// khiển không thấy, vấn đề nằm ở cách gắn view; nếu cả hai đều không thấy, sự kiện
+/// chạm chưa từng tới SpringBoard. Gesture không nuốt sự kiện nên không ảnh hưởng
+/// tới ứng dụng đang hiển thị.
+- (void)installDisplayTouchMonitor;
 
 /// Gỡ nội dung và ẩn cửa sổ. An toàn khi gọi nhiều lần.
 - (void)dismiss;

@@ -227,6 +227,14 @@ typedef int (*OCPLaunchFunction)(CFStringRef, Boolean);
         return NO;
     }
 
+    // Thanh điều khiển phải có TRƯỚC nội dung: nếu bridge dựng được scene nhưng có
+    // sự cố sau đó, người dùng vẫn còn đường thoát khỏi ứng dụng trên màn hình xe.
+    __weak typeof(self) weakSelf = self;
+    [window installControlOverlayWithDismissHandler:^{
+        [weakSelf dismissHostedApplication];
+    }];
+    [window installDisplayTouchMonitor];
+
     OCPSceneBridge *bridge = [[OCPSceneBridge alloc] init];
     UIView *applicationView =
         [bridge viewForApplicationWithBundleIdentifier:bundleIdentifier error:&error];
@@ -245,7 +253,8 @@ typedef int (*OCPLaunchFunction)(CFStringRef, Boolean);
 
     self.sceneBridge = bridge;
     self.carPlayWindow = window;
-    OCPLogError_(@"%@ đang hiển thị trên MÀN HÌNH XE", bundleIdentifier);
+    OCPLogError_(@"%@ đang hiển thị trên MÀN HÌNH XE — chạm vào thanh điều khiển bên trái "
+                 @"để xác minh touch routing và để thoát", bundleIdentifier);
     return YES;
 }
 

@@ -164,6 +164,10 @@ idevicesyslog | grep -i opencarplay       # tương đương
 Danh mục log: `[OpenCarPlay] [CarPlay] [Application] [Rendering] [Touch] [Audio]
 [Compatibility] [Error]`.
 
+Khi ứng dụng đang hiển thị trên màn hình xe, danh mục `[Touch]` cho biết sự kiện chạm đi tới
+đâu — thanh điều khiển thấy chạm, tầng display thấy chạm, hay không tầng nào thấy. Ba trường
+hợp đó chỉ tới ba nguyên nhân khác nhau.
+
 ### Công cụ nghiên cứu
 
 Hai khoá trong plist, mặc định tắt, chỉ dùng khi cần thu thập bằng chứng runtime:
@@ -212,7 +216,9 @@ hay chính CarPlay dashboard lên màn hình xe.
 - Gắn giao diện lên màn hình xe (`ExperimentalSceneHosting`) dựa trên chuỗi private API nội bộ
   của SpringBoard mà **chưa ai kiểm chứng trên iOS 18.6** (Q5 trong `RESEARCH.md`). Nếu chuỗi đã
   đổi, tweak từ chối chạy và ghi log tên bước hỏng, rồi lùi về mở ứng dụng trên màn hình iPhone.
-- Chạm và cuộn trên màn hình xe chưa được kiểm chứng — đó là Phase 10.
+- Chạm và cuộn trên màn hình xe chưa được kiểm chứng trên xe thật. Tweak không tự xử lý sự
+  kiện chạm (UIKit định tuyến sẵn khi view của scene nằm trong cửa sổ trên màn hình xe), nhưng
+  có hai lớp ghi log để biết chạm đi tới đâu: thanh điều khiển và tầng display.
 - Ứng dụng chỉ sống trên một màn hình tại một thời điểm; khi đang ở màn hình xe, màn hình iPhone
   chưa có ảnh thay thế (sẽ làm ở phase sau).
 - Một app chỉ chạy trên một màn hình tại một thời điểm; khi đang ở CarPlay, màn hình iPhone sẽ

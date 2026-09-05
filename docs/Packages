@@ -1,5 +1,5 @@
 Package: com.opencarplay.tweak
-Version: 0.8.0
+Version: 0.9.0
 Architecture: iphoneos-arm64
 Name: OpenCarPlay
 Section: Tweaks
@@ -10,10 +10,10 @@ Depiction: https://nguyenhuuducit91.github.io/opencarplay/depiction/opencarplay.
 SileoDepiction: https://nguyenhuuducit91.github.io/opencarplay/depiction/opencarplay.json
 Icon: https://nguyenhuuducit91.github.io/opencarplay/CydiaIcon.png
 Tag: role::hacker
-Filename: debs/com.opencarplay.tweak_0.8.0_iphoneos-arm64.deb
-Size: 72796
-MD5sum: c33f61a7b9bc0a6fed529f7a5ff6458f
-SHA1: 7c2cd7260acf8849fab978e1c7fd64862f2a10fb
-SHA256: 30627b97ea26b6514b21bf85a560c14219a88cc08d2c868c7d578d26b2a0725a
+Filename: debs/com.opencarplay.tweak_0.9.0_iphoneos-arm64.deb
+Size: 78918
+MD5sum: 4c759107e215ed68070a8ebcc50b8093
+SHA1: ff5aca54c922325bd24d91f7f9b0f46513f38c80
+SHA256: 1f9f47cf00647150cd5488d60775c7823f809ccd41cfc973f7f5d7c7e22ad364
 Description: Use selected iOS apps on the CarPlay screen. Research tool for jailbroken iOS 18.6.x; does nothing until explicitly enabled.
-Installed-Size: 436
+Installed-Size: 452
