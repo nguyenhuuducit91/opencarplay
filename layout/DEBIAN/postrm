@@ -1,0 +1,32 @@
+#!/bin/sh
+# OpenCarPlay — sau khi gỡ.
+#
+# Gỡ thường giữ lại cấu hình (người dùng hay cài lại). Chỉ khi purge mới xoá sạch
+# mọi thứ tweak từng tạo ra.
+
+set -e
+
+JBROOT=""
+[ -d /var/jb/usr/lib ] && JBROOT="/var/jb"
+PREFS_DIR="$JBROOT/var/mobile/Library/Preferences"
+
+killall -9 CarPlay 2>/dev/null || true
+
+case "$1" in
+    purge)
+        rm -f "$PREFS_DIR/com.opencarplay.plist"
+        rm -f "$PREFS_DIR/com.opencarplay.disabled"
+        rm -f "$PREFS_DIR/com.opencarplay.loads.plist"
+        rm -f "$PREFS_DIR"/com.opencarplay.*.payload.plist
+        rm -rf /var/mobile/Media/OpenCarPlay
+        rm -rf "$JBROOT/var/mobile/Library/Logs/OpenCarPlay"
+        echo "OpenCarPlay: đã xoá cấu hình và dữ liệu khảo sát."
+        ;;
+    remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+        echo "OpenCarPlay: đã gỡ. Cấu hình vẫn được giữ lại;"
+        echo "  dùng 'dpkg --purge com.opencarplay.tweak' để xoá sạch."
+        ;;
+esac
+
+echo "OpenCarPlay: respring để gỡ hẳn khỏi SpringBoard."
+exit 0

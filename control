@@ -1,9 +1,14 @@
 Package: com.opencarplay.tweak
 Name: OpenCarPlay
-Version: 0.11.0
+Version: 0.12.0
 Architecture: iphoneos-arm64
 Depends: firmware (>= 18.0), ellekit, preferenceloader
 Section: Tweaks
+Conflicts: com.cortex.carplayenable, com.unlimapps.uacarbridge, com.dcsyhi.carcast
+Homepage: https://nguyenhuuducit91.github.io/opencarplay/
+Depiction: https://nguyenhuuducit91.github.io/opencarplay/depiction/opencarplay.html
+SileoDepiction: https://nguyenhuuducit91.github.io/opencarplay/depiction/opencarplay.json
+Icon: https://nguyenhuuducit91.github.io/opencarplay/CydiaIcon.png
 Maintainer: nguyenhuuducit91 <nguyenhuuducit91@users.noreply.github.com>
 Author: nguyenhuuducit91 <nguyenhuuducit91@users.noreply.github.com>
 Description: Use selected iOS apps on the CarPlay screen. Research tool for jailbroken iOS 18.6.x; does nothing until explicitly enabled.

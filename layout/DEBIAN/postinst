@@ -1,0 +1,28 @@
+#!/bin/sh
+# OpenCarPlay — sau khi cài.
+#
+# Chỉ khởi động lại process CarPlay dashboard: nó nạp lại tweak ngay mà không ảnh
+# hưởng gì tới màn hình iPhone. Phần trong SpringBoard cần respring, và việc đó để
+# trình quản lý gói tự đề xuất — tự ý respring trong postinst là hành vi thô bạo,
+# nhất là khi người dùng đang cài nhiều gói một lượt.
+
+set -e
+
+JBROOT=""
+[ -d /var/jb/usr/lib ] && JBROOT="/var/jb"
+
+# CarPlay.app chỉ chạy khi đang kết nối; không chạy thì lệnh này vô hại.
+killall -9 CarPlay 2>/dev/null || true
+
+# Nếu người dùng từng bị vòng lặp crash, kill switch có thể còn sót lại và sẽ chặn
+# bản vừa cài. Báo cho họ biết thay vì để tweak im lặng không hoạt động.
+KILLSWITCH="$JBROOT/var/mobile/Library/Preferences/com.opencarplay.disabled"
+if [ -f "$KILLSWITCH" ]; then
+    echo "OpenCarPlay: kill switch đang bật, tweak sẽ KHÔNG nạp."
+    echo "  Xoá để bật lại: rm $KILLSWITCH"
+fi
+
+echo "OpenCarPlay: đã cài. Respring để phần trong SpringBoard có hiệu lực,"
+echo "  rồi bật trong Settings → OpenCarPlay."
+
+exit 0

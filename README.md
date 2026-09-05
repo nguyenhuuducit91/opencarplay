@@ -214,6 +214,64 @@ Mục nhập sai (chuỗi rác, process hệ thống) bị loại khi nạp và 
 chặn cứng luôn thắng danh sách cho phép, nên một dòng cấu hình sai không thể đưa SpringBoard
 hay chính CarPlay dashboard lên màn hình xe.
 
+## Checklist kiểm thử trên thiết bị
+
+Chạy theo thứ tự; mỗi mục hỏng đều chỉ tới một phần khác nhau của hệ thống.
+
+**Nền tảng** — chưa bật tuỳ chọn thử nghiệm nào
+
+```
+[ ] iPhone khởi động bình thường sau khi cài
+[ ] SpringBoard ổn định (không respring tự phát trong 10 phút)
+[ ] Sileo mở được
+[ ] log có dòng "[OpenCarPlay] loaded" trong SpringBoard   ← arm64e slice nạp được
+[ ] environmentSummary in đúng iOS 18.6.2 / arm64e / /var/jb / ellekit
+[ ] probe report liệt kê đủ 6 nhóm khả năng
+[ ] Settings → OpenCarPlay mở được, các switch ghi nhận thay đổi
+[ ] gỡ cài rồi cài lại không lỗi
+```
+
+**CarPlay cơ bản** — vẫn chưa bật thử nghiệm
+
+```
+[ ] cắm CarPlay: log "[CarPlay] CarPlay CONNECTED" kèm kích thước màn hình thật
+[ ] log ghi nguồn dữ liệu màn hình (FBSDisplayConfiguration / CADisplay / UIScreen)
+[ ] rút CarPlay: log "CarPlay DISCONNECTED"
+[ ] CarPlay nguyên bản hoạt động y như khi chưa cài tweak
+[ ] cắm/rút 10 lần liên tiếp không crash
+```
+
+**Thử nghiệm** — bật `ExperimentalDiscovery`
+
+```
+[ ] app đã chọn xuất hiện trên dashboard CarPlay
+[ ] app CarPlay chính hãng (Maps, Music) vẫn hoạt động bình thường
+[ ] chạm icon: log "chạm icon OpenCarPlay" rồi app mở
+[ ] tắt tuỳ chọn + killall -9 CarPlay: dashboard trở lại nguyên bản
+```
+
+**Thử nghiệm** — bật thêm `ExperimentalSceneHosting`
+
+```
+[ ] app hiện trên màn hình xe (hoặc log nói rõ bước nào thiếu tiền đề)
+[ ] thanh điều khiển hiện bên trái
+[ ] chạm thanh điều khiển: log "[Touch] chạm #N" ← touch routing hoạt động
+[ ] cuộn trong app hoạt động
+[ ] nút thoát đóng được app
+[ ] rút CarPlay khi app đang hiển thị: cửa sổ tự đóng, không crash
+[ ] app crash khi đang hiển thị: SpringBoard không chết theo
+[ ] khoá máy khi app đang hiển thị
+[ ] log [Audio] cho thấy tuyến âm thanh không đổi do tweak
+```
+
+**Khôi phục**
+
+```
+[ ] tạo file com.opencarplay.disabled rồi respring: tweak không nạp
+[ ] xoá file đó rồi respring: tweak nạp lại
+[ ] crash guard tự tạo file đó khi SpringBoard chết lặp
+```
+
 ## Known limitations
 
 - Việc đưa app lên dashboard (`ExperimentalDiscovery`) dựa trên cơ chế của iOS 14 và **chưa

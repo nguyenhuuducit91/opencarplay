@@ -25,6 +25,16 @@ include $(THEOS_MAKE_PATH)/tweak.mk
 SUBPROJECTS += Preferences
 include $(THEOS_MAKE_PATH)/aggregate.mk
 
+# Chuẩn hoá quyền trước khi đóng gói: umask của máy build (thường 002) để lại bit
+# group-write, không phù hợp cho file cài vào hệ thống.
+after-stage::
+	@find $(THEOS_STAGING_DIR) -type d -exec chmod 755 {} +
+	@find $(THEOS_STAGING_DIR) -type f -exec chmod 644 {} +
+	@find $(THEOS_STAGING_DIR) -name '*.dylib' -exec chmod 755 {} +
+	@find $(THEOS_STAGING_DIR) -path '*.bundle/*' -type f ! -name '*.plist' ! -name '*.png' \
+		-exec chmod 755 {} +
+	@[ -d $(THEOS_STAGING_DIR)/DEBIAN ] && chmod 755 $(THEOS_STAGING_DIR)/DEBIAN/post* || true
+
 # --- APT repository cho Sileo (GitHub Pages) --------------------------------
 # Sinh docs/ từ các .deb trong packages/:
 #     make package FINALPACKAGE=1 && make repo
