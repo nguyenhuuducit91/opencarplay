@@ -5,6 +5,7 @@
 
 #import "OCPDefines.h"
 #import "OCPLog.h"
+#import "OCPPreferences.h"
 
 /// Nạp nhiều hơn ngần này lần trong kCrashWindow giây nghĩa là SpringBoard đang chết lặp.
 /// Người dùng respring thủ công vài lần liên tiếp là chuyện bình thường, nên ngưỡng
@@ -18,7 +19,7 @@ static const NSTimeInterval kHealthyAfter = 60.0;
 @implementation OCPCrashGuard
 
 + (NSString *)historyPath {
-    return OCPRootedPath(@"/var/mobile/Library/Preferences/com.opencarplay.loads.plist");
+    return @"/var/mobile/Library/Preferences/com.opencarplay.loads.plist";
 }
 
 + (NSArray<NSNumber *> *)loadHistory {
@@ -79,8 +80,8 @@ static const NSTimeInterval kHealthyAfter = 60.0;
 
 + (NSString *)markerPathForOperation:(NSString *)name {
     NSString *safeName = [name stringByReplacingOccurrencesOfString:@"/" withString:@"_"];
-    return OCPRootedPath([NSString stringWithFormat:
-        @"/var/mobile/Library/Preferences/com.opencarplay.running-%@", safeName]);
+    return [NSString stringWithFormat:
+        @"/var/mobile/Library/Preferences/com.opencarplay.running-%@", safeName];
 }
 
 + (BOOL)beginRiskyOperation:(NSString *)name disablingPreference:(nullable NSString *)preferenceKey {
@@ -96,17 +97,12 @@ static const NSTimeInterval kHealthyAfter = 60.0;
         [fileManager removeItemAtPath:markerPath error:NULL];
 
         if (preferenceKey.length > 0) {
-            @try {
-                NSString *preferencesPath = OCPPreferencesPath();
-                NSMutableDictionary *preferences =
-                    [[NSDictionary dictionaryWithContentsOfFile:preferencesPath] mutableCopy];
-                if (preferences != nil) {
-                    preferences[preferenceKey] = @NO;
-                    [preferences writeToFile:preferencesPath atomically:YES];
-                    OCPLogError_(@"đã đặt %@ = NO trong preferences", preferenceKey);
-                }
-            } @catch (NSException *exception) {
-                OCPLogError_(@"không tắt được %@: %@", preferenceKey, exception.reason);
+            // Qua OCPPreferences chứ không ghi thẳng file: cfprefsd giữ bản nhớ đệm
+            // của domain này và sẽ đè lên mọi thứ ghi vòng qua nó.
+            if ([[OCPPreferences sharedPreferences] setValue:@NO forPreferenceKey:preferenceKey]) {
+                OCPLogError_(@"đã đặt %@ = NO trong preferences", preferenceKey);
+            } else {
+                OCPLogError_(@"không tắt được %@ trong preferences", preferenceKey);
             }
         }
         return NO;

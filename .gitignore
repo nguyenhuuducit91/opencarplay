@@ -24,3 +24,7 @@ logs/
 .idea/
 .DS_Store
 *.swp
+
+# Python bytecode của scripts/
+__pycache__/
+*.pyc

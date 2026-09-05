@@ -11,6 +11,8 @@
 
 #import <Foundation/Foundation.h>
 
+#import <dlfcn.h>
+
 #import "OCPDiscoveryAdapter.h"
 #import "OCPLog.h"
 #import "OCPProbe.h"
@@ -101,9 +103,25 @@
 
 #pragma mark - Cài đặt
 
+/// Runtime hook có sẵn không.
+///
+/// Logos gọi thẳng MSHookMessageEx trong %init mà không kiểm tra NULL. Nếu
+/// CydiaSubstrate vắng mặt — hoặc được liên kết weak như bản 0.24–0.30 từng làm — thì
+/// symbol bằng NULL và %init nhảy vào địa chỉ 0. Kiểm tra trước để lỗi hiện ra ở dạng
+/// một dòng log thay vì một crash không lần được nguyên nhân.
+static BOOL OCPHookingRuntimeAvailable(void) {
+    return dlsym(RTLD_DEFAULT, "MSHookMessageEx") != NULL;
+}
+
 /// Gọi từ Entry.xm sau khi đã xác nhận process, phiên bản iOS và cấu hình.
 void OCPInstallCarPlayHooks(void) {
     @try {
+        if (!OCPHookingRuntimeAvailable()) {
+            OCPLogError_(@"không tìm thấy MSHookMessageEx — runtime hook không khả dụng, "
+                         @"không cài hook nào. Kiểm tra gói ellekit.");
+            return;
+        }
+
         if (![OCPDiscoveryAdapter isEnabled]) {
             OCPLogC(OCPLogApplication,
                     @"discovery chưa bật (cần Enabled và ExperimentalDiscovery) — không hook");

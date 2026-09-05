@@ -31,8 +31,7 @@ static BOOL sDebugLoggingEnabled = NO;
     // Đọc trực tiếp, không qua OCPPreferences: logging phải hoạt động được
     // ngay cả khi lớp preferences chưa sẵn sàng.
     @try {
-        NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:OCPPreferencesPath()];
-        id value = prefs[@"DebugLogging"];
+        id value = OCPPreferencesCopyRaw()[@"DebugLogging"];
         sDebugLoggingEnabled = [value respondsToSelector:@selector(boolValue)] ? [value boolValue] : NO;
     } @catch (NSException *exception) {
         sDebugLoggingEnabled = NO;

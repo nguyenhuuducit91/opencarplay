@@ -22,8 +22,32 @@ FOUNDATION_EXPORT NSString *OCPJailbreakRoot(void);
 /// OCPRootedPath(@"/var/mobile/...") -> @"/var/jb/var/mobile/..." trên rootless.
 FOUNDATION_EXPORT NSString *OCPRootedPath(NSString *absolutePath);
 
-/// Đường dẫn đầy đủ tới file preferences.
+/// Đường dẫn file preferences.
+///
+/// KHÔNG có tiền tố jbroot. Bảng cài đặt chạy trong Settings và ghi qua CFPreferences,
+/// mà cfprefsd làm việc trên hệ thống file thật: /var/mobile/Library/Preferences/.
+/// Jailbreak rootless dời /Library, /usr, /Applications — không dời /var/mobile.
+///
+/// Bản 0.30 và trước đó đọc /var/jb/var/mobile/... nên không bao giờ thấy thứ người
+/// dùng vừa bật trong Settings.
 FOUNDATION_EXPORT NSString *OCPPreferencesPath(void);
+
+/// Vị trí sai mà các bản trước dùng. Chỉ còn để di trú cấu hình cũ một lần.
+FOUNDATION_EXPORT NSString *OCPLegacyPreferencesPath(void);
+
+/// Chuyển file cấu hình từ vị trí cũ sang vị trí đúng nếu cần. An toàn khi gọi nhiều lần.
+FOUNDATION_EXPORT void OCPMigrateLegacyPreferences(void);
+
+/// Toàn bộ cấu hình hiện tại, đọc trực tiếp không qua OCPPreferences.
+///
+/// Hai đường, theo đúng thứ tự này:
+///   1. CFPreferences — nơi bảng cài đặt vừa ghi; giá trị mới nhất nằm ở đây kể cả
+///      khi cfprefsd chưa kịp đẩy xuống đĩa.
+///   2. File plist — đường lùi khi domain chưa từng qua cfprefsd (ví dụ người dùng
+///      tạo file bằng Filza).
+///
+/// Dùng được từ mọi nơi, kể cả những lớp không được phép phụ thuộc OCPPreferences.
+FOUNDATION_EXPORT NSDictionary<NSString *, id> *OCPPreferencesCopyRaw(void);
 
 /// Đường dẫn tới kill switch. Nếu file tồn tại, tweak không được nạp bất cứ thứ gì.
 FOUNDATION_EXPORT NSString *OCPKillSwitchPath(void);

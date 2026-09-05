@@ -11,7 +11,7 @@ NSString *const OCPPreferencesDidChangeNotification = @"OCPPreferencesDidChangeN
 
 @interface OCPPreferences ()
 @property (nonatomic, copy) NSDictionary<NSString *, id> *cache;
-@property (nonatomic, assign) BOOL fileExists;
+@property (nonatomic, assign) BOOL hasStoredConfiguration;
 @end
 
 @implementation OCPPreferences
@@ -45,15 +45,12 @@ NSString *const OCPPreferencesDidChangeNotification = @"OCPPreferencesDidChangeN
 - (void)reload {
     NSDictionary *loaded = nil;
     @try {
-        NSString *path = OCPPreferencesPath();
-        _fileExists = [[NSFileManager defaultManager] fileExistsAtPath:path];
-        if (_fileExists) {
-            loaded = [NSDictionary dictionaryWithContentsOfFile:path];
-            if (![loaded isKindOfClass:[NSDictionary class]]) {
-                OCPLogError_(@"preferences không phải dictionary — bỏ qua nội dung");
-                loaded = nil;
-            }
-        }
+        OCPMigrateLegacyPreferences();
+        loaded = OCPPreferencesCopyRaw();
+        // "Đã cấu hình" nghĩa là có ít nhất một giá trị, dù nó nằm ở cfprefsd hay ở
+        // file. Bản trước chỉ nhìn file nên báo "chưa cấu hình" ngay sau khi người
+        // dùng bật công tắc trong Settings.
+        _hasStoredConfiguration = (loaded.count > 0);
     } @catch (NSException *exception) {
         OCPLogError_(@"đọc preferences thất bại: %@", exception.reason);
         loaded = nil;
@@ -124,19 +121,20 @@ NSString *const OCPPreferencesDidChangeNotification = @"OCPPreferencesDidChangeN
             updated[key] = value;
         }
 
-        NSString *path = OCPPreferencesPath();
-        NSString *directory = [path stringByDeletingLastPathComponent];
-        [[NSFileManager defaultManager] createDirectoryAtPath:directory
-                                 withIntermediateDirectories:YES
-                                                  attributes:nil
-                                                       error:NULL];
-
-        if (![updated writeToFile:path atomically:YES]) {
-            OCPLogError_(@"ghi preferences thất bại: %@", path);
+        // Ghi qua CFPreferences, cùng đường mà bảng cài đặt dùng. Ghi thẳng vào file
+        // thì cfprefsd có thể đè lại bằng bản nhớ đệm của nó và thay đổi biến mất.
+        CFStringRef domain = (__bridge CFStringRef)OCPPreferencesDomain;
+        CFPreferencesSetValue((__bridge CFStringRef)key,
+                              (__bridge CFPropertyListRef)value,
+                              domain, kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
+        if (!CFPreferencesAppSynchronize(domain)) {
+            OCPLogError_(@"ghi preferences thất bại: cfprefsd từ chối domain %@",
+                         OCPPreferencesDomain);
             return NO;
         }
 
         self.cache = updated;
+        _hasStoredConfiguration = YES;
         [OCPLog setDebugLoggingEnabled:self.debugLogging];
         [[OCPTransport sharedTransport] postMessage:OCPMessagePreferencesChanged payload:nil];
         return YES;
@@ -161,12 +159,12 @@ NSString *const OCPPreferencesDidChangeNotification = @"OCPPreferencesDidChangeN
         @"SignalDiscovery":     @(self.signalDiscovery),
         @"ExperimentalDiscovery": @(self.experimentalDiscovery),
         @"ExperimentalSceneHosting": @(self.experimentalSceneHosting),
-        @"FileExists":          @(self.fileExists),
+        @"Configured":          @(self.hasStoredConfiguration),
     };
 }
 
 - (NSString *)summary {
-    if (!self.fileExists) return @"chưa có file cấu hình (mọi tuỳ chọn tắt)";
+    if (!self.hasStoredConfiguration) return @"chưa cấu hình bao giờ (mọi tuỳ chọn tắt)";
     return [NSString stringWithFormat:
             @"Enabled=%@ apps=%lu debug=%@ survey=%@ signals=%@ experimental=%@",
             self.enabled ? @"YES" : @"NO",

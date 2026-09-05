@@ -1,181 +1,229 @@
 #!/usr/bin/env python3
-"""Kiểm tra mọi Mach-O trong gói .deb trước khi phát hành.
-
-Sinh ra sau khi tám bản liên tiếp được giao mà không bản nào chạy. Mỗi kiểm tra dưới
-đây ứng với một lỗi đã gặp thật trên máy người dùng:
-
-  cpusubtype = arm64e     | thiếu -> incompatible architecture (have arm64, need arm64e)
-  chained fixups có data  | rỗng  -> readClass() chết, dlopen thất bại
-                                     (ld64-609 sinh fixups RỖNG cho binary quá nhỏ)
-  không có lệnh PAC       | có    -> possible pointer authentication failure
-  có chữ ký               | thiếu -> dyld từ chối
-  CydiaSubstrate là weak  | bắt buộc -> dyld giết process nếu không tìm thấy
+"""Kiểm tra một gói .deb trước khi phát hành.
 
     python3 scripts/verify_package.py packages/*.deb
+
+Mỗi kiểm tra ứng với một lỗi đã thực sự giao tới tay người dùng. Nhóm quan trọng nhất
+không phải Mach-O mà là LIÊN KẾT GIỮA CÁC FILE: tên lớp viết trong plist có tồn tại
+trong binary không, mục PreferenceLoader có trỏ tới bundle thật không. Bảng cài đặt
+trống suốt nhiều bản chính vì không ai kiểm tra những liên kết đó.
 """
 
-import re
-import struct
+import plistlib
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
-LC_DYLD_CHAINED_FIXUPS = 0x80000033
-LC_DYLD_INFO_ONLY = 0x80000022
-LC_CODE_SIGNATURE = 0x1D
-LC_LOAD_DYLIB = 0x0C
-LC_LOAD_WEAK_DYLIB = 0x18
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import macho
 
 
-def slices(data: bytes):
-    if struct.unpack_from(">I", data, 0)[0] == 0xCAFEBABE:
-        for i in range(struct.unpack_from(">I", data, 4)[0]):
-            _, _, offset, _, _ = struct.unpack_from(">iiIII", data, 8 + i * 20)
-            yield offset
-    else:
-        yield 0
+# --- Mach-O ------------------------------------------------------------------
 
-
-def pac_count(path: Path) -> int:
-    for tool in ("objdump", "llvm-objdump"):
-        try:
-            out = subprocess.run([tool, "-d", "--arch-name=aarch64", str(path)],
-                                 capture_output=True, text=True, timeout=180).stdout
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            continue
-        return len(re.findall(r"\b(pac[a-z]+|aut[a-z]+|retab|blraa|braa)\b", out))
-    return -1
-
-
-def declares_objc_classes(path: Path) -> list:
-    """Tên các lớp Objective-C mà binary khai báo lúc biên dịch.
-
-    Với binary trong preference bundle, danh sách này PHẢI rỗng: superclass của lớp
-    khai báo lúc biên dịch phải bind qua chained fixups arm64e, và trên toolchain Linux
-    đó là chỗ readClass() chết khi Settings nạp bundle.
-    """
-    for tool in ("nm", "llvm-nm"):
-        try:
-            out = subprocess.run([tool, "-arch", "arm64e", str(path)],
-                                 capture_output=True, text=True, timeout=120).stdout
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            continue
-        return re.findall(r"^\S+ S _OBJC_CLASS_\$_(\w+)", out, re.M)
-    return []
-
-
-def check_macho(path: Path) -> list:
+def check_macho(path: Path, relative: str) -> list:
     problems = []
-    data = path.read_bytes()
+    for image in macho.read(path):
+        if image.arch != "arm64e":
+            problems.append(f"{relative}: {image.arch}, không phải arm64e — "
+                            f"dyld sẽ báo incompatible architecture")
+        if image.classic_binding:
+            problems.append(f"{relative}: dùng binding cổ điển (LC_DYLD_INFO_ONLY) — "
+                            f"arm64e không đọc được, dyld báo bad bind opcode")
+        if not image.chained_fixups or image.chained_fixups[1] == 0:
+            problems.append(f"{relative}: chained fixups rỗng — không bind được symbol nào")
+        if not image.signed:
+            problems.append(f"{relative}: chưa ký — dyld từ chối")
 
-    # Binary nằm trong .bundle được Settings dlopen; nó không được khai báo lớp nào.
-    if ".bundle/" in str(path):
-        declared = declares_objc_classes(path)
-        if declared:
-            problems.append(f"{path.name}: khai báo {len(declared)} lớp Objective-C "
-                            f"({', '.join(declared[:3])}...) — readClass() sẽ chết khi "
-                            f"Settings nạp bundle. Dựng lớp lúc chạy thay vì @interface.")
+        for name, weak in image.dylibs:
+            if "Substrate" not in name and "ellekit" not in name:
+                continue
+            if weak:
+                problems.append(
+                    f"{relative}: phụ thuộc {name} ở dạng WEAK. Khi thư viện vắng mặt, "
+                    f"MSHookMessageEx bằng NULL và Logos gọi thẳng vào đó — crash ở chỗ "
+                    f"không lần ra được, thay vì một lỗi dyld nói rõ nguyên nhân.")
+            if name.startswith("@rpath/") and not image.rpaths:
+                problems.append(f"{relative}: {name} qua @rpath nhưng binary không có "
+                                f"LC_RPATH nào — dyld sẽ giết process")
 
-    for offset in slices(data):
-        cpusubtype = struct.unpack_from("<i", data, offset + 8)[0]
-        if (cpusubtype & 0xFFFFFF) != 2:
-            problems.append(f"{path.name}: không phải arm64e (cpusubtype={cpusubtype})")
+        fixups = image.chained_fixups[1] if image.chained_fixups else 0
+        print(f"  {relative:58} {image.arch} fixups={fixups} ký={image.signed} "
+              f"objc={image.objc_class_count()} pac={sum(image.pac_instructions().values())}")
+    return problems
 
-        ncmds = struct.unpack_from("<I", data, offset + 16)[0]
-        p = offset + 32
-        fixups_size = None
-        classic = False
-        signed = False
-        substrate = None
 
-        for _ in range(ncmds):
-            cmd, cmdsize = struct.unpack_from("<II", data, p)
-            if cmd == LC_DYLD_CHAINED_FIXUPS:
-                fixups_size = struct.unpack_from("<I", data, p + 12)[0]
-            elif cmd == LC_DYLD_INFO_ONLY:
-                classic = True
-            elif cmd == LC_CODE_SIGNATURE:
-                signed = True
-            elif cmd in (LC_LOAD_DYLIB, LC_LOAD_WEAK_DYLIB):
-                name_offset = struct.unpack_from("<I", data, p + 8)[0]
-                name = data[p + name_offset:p + cmdsize].split(b"\x00")[0].decode(errors="ignore")
-                if "Substrate" in name:
-                    substrate = (cmd == LC_LOAD_WEAK_DYLIB, name)
-            p += cmdsize
+# --- Bảng cài đặt ------------------------------------------------------------
 
-        if fixups_size is None:
-            problems.append(f"{path.name}: không có chained fixups"
-                            + (" (dùng binding cổ điển — arm64e không đọc được)" if classic else ""))
-        elif fixups_size == 0:
-            problems.append(f"{path.name}: chained fixups RỖNG — binary không bind được symbol nào. "
-                            f"ld64 sinh ra thế này khi binary quá nhỏ; thêm nội dung hoặc đổi linker.")
+def read_plist(path: Path):
+    try:
+        return plistlib.loads(path.read_bytes()), None
+    except Exception as error:
+        return None, str(error)
 
-        if not signed:
-            problems.append(f"{path.name}: chưa ký")
 
-        if substrate is not None and not substrate[0]:
-            problems.append(f"{path.name}: phụ thuộc CydiaSubstrate ở dạng BẮT BUỘC — "
-                            f"dyld sẽ giết process nếu không tìm thấy")
+def collect_detail_classes(items) -> set:
+    """Mọi tên lớp mà Root.plist yêu cầu Settings dựng."""
+    classes = set()
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+        for key in ("detail", "cellClass", "pane", "customControllerClass"):
+            value = item.get(key)
+            if isinstance(value, str) and value.startswith("OCP"):
+                classes.add(value)
+    return classes
 
-        count = pac_count(path)
-        if count > 0:
-            problems.append(f"{path.name}: có {count} lệnh PAC — iOS 18.6 sẽ báo "
-                            f"pointer authentication failure")
 
-        size = len(data) if offset == 0 else None
-        detail = f"fixups={fixups_size} ký={signed} PAC={count}"
-        if substrate: detail += f" substrate={'weak' if substrate[0] else 'BẮT BUỘC'}"
-        if size: detail += f" size={size}"
-        print(f"  {path.name:24} arm64e  {detail}")
+def check_preference_bundle(bundle: Path, root: Path) -> list:
+    problems = []
+    name = bundle.name
+    declared = set()
+
+    info, error = read_plist(bundle / "Info.plist") if (bundle / "Info.plist").exists() \
+        else (None, "không có file")
+    if info is None:
+        return [f"{name}/Info.plist: {error}"]
+
+    executable = info.get("CFBundleExecutable")
+    if not executable:
+        problems.append(f"{name}: Info.plist thiếu CFBundleExecutable")
+    elif not (bundle / executable).exists():
+        problems.append(f"{name}: Info.plist khai báo {executable} nhưng không có file đó")
+    else:
+        for image in macho.read(bundle / executable):
+            declared |= image.defined_objc_classes()
+
+    principal = info.get("NSPrincipalClass")
+    if not principal:
+        problems.append(
+            f"{name}: Info.plist thiếu NSPrincipalClass. PreferenceLoader gọi "
+            f"-[NSBundle principalClass] để lấy lớp điều khiển; thiếu khoá này thì "
+            f"Settings hiện trang lỗi 'There was an error loading the preference bundle'.")
+    elif declared and principal not in declared:
+        problems.append(f"{name}: NSPrincipalClass = {principal} nhưng binary không "
+                        f"định nghĩa lớp đó (có: {', '.join(sorted(declared)) or 'không lớp nào'})")
+
+    root_plist = bundle / "Root.plist"
+    if not root_plist.exists():
+        problems.append(f"{name}: thiếu Root.plist — bảng cài đặt sẽ trống")
+        return problems
+
+    data, error = read_plist(root_plist)
+    if data is None:
+        problems.append(f"{name}/Root.plist: {error}")
+        return problems
+    items = data.get("items")
+    if not items:
+        problems.append(f"{name}/Root.plist: không có mục nào trong 'items'")
+    for missing in sorted(collect_detail_classes(items) - declared):
+        problems.append(f"{name}/Root.plist trỏ tới lớp {missing} nhưng binary không "
+                        f"định nghĩa nó — chạm vào dòng đó Settings sẽ không mở được gì")
 
     return problems
 
 
-def check_layout(root: Path) -> list:
-    """Kiểm tra gói có đủ file mà iOS cần, không chỉ binary.
-
-    Sinh ra sau khi một bản được phát hành với thư mục PreferenceLoader rỗng và bundle
-    chỉ có binary — Settings không hiện mục nào mà cũng chẳng báo lỗi gì.
-    """
-    import plistlib
-
+def check_preference_loader_entries(root: Path, bundles: list) -> list:
     problems = []
-    bundles = list(root.rglob("*.bundle"))
+    entries = list(root.rglob("Library/PreferenceLoader/Preferences/*.plist"))
 
-    for bundle in bundles:
-        info = bundle / "Info.plist"
-        if not info.exists():
-            problems.append(f"{bundle.name}: thiếu Info.plist")
+    if bundles and not entries:
+        return ["có preference bundle nhưng thiếu mục trong "
+                "Library/PreferenceLoader/Preferences — Settings sẽ không hiện gì. "
+                "Đây chính là lý do 'không thấy OpenCarPlay trong Cài đặt'."]
+
+    for path in entries:
+        data, error = read_plist(path)
+        if data is None:
+            problems.append(f"{path.name}: {error}")
             continue
-        try:
-            data = plistlib.loads(info.read_bytes())
-        except Exception as error:
-            problems.append(f"{bundle.name}/Info.plist không đọc được: {error}")
+
+        entry = data.get("entry")
+        if not isinstance(entry, dict):
+            problems.append(f"{path.name}: thiếu khoá 'entry'")
+            continue
+        if not entry.get("label"):
+            problems.append(f"{path.name}: entry thiếu 'label' — dòng trong Settings không có tên")
+
+        bundle_name = entry.get("bundle")
+        if not bundle_name:
             continue
 
-        executable = data.get("CFBundleExecutable")
-        if executable and not (bundle / executable).exists():
-            problems.append(f"{bundle.name}: Info.plist khai báo {executable} nhưng không có file đó")
-        if not (bundle / "Root.plist").exists():
-            problems.append(f"{bundle.name}: thiếu Root.plist — bảng cài đặt sẽ trống")
+        target = next((b for b in bundles if b.name == f"{bundle_name}.bundle"), None)
+        if target is None:
+            problems.append(f"{path.name}: entry trỏ tới bundle {bundle_name} nhưng gói "
+                            f"không chứa /Library/PreferenceBundles/{bundle_name}.bundle")
+            continue
 
-    # Bundle cài đặt phải có mục đăng ký với PreferenceLoader, nếu không Settings
-    # không hiện gì cả.
-    if any("PreferenceBundles" in str(b) for b in bundles):
-        entries = list(root.rglob("Library/PreferenceLoader/Preferences/*.plist"))
-        if not entries:
-            problems.append("có preference bundle nhưng thiếu mục trong "
-                            "Library/PreferenceLoader/Preferences — Settings sẽ không hiện gì")
-        for entry in entries:
-            try:
-                data = plistlib.loads(entry.read_bytes())
-            except Exception as error:
-                problems.append(f"{entry.name} không đọc được: {error}")
+        icon = entry.get("icon")
+        if icon and not (target / icon).exists():
+            problems.append(f"{path.name}: icon '{icon}' không có trong {target.name}")
+
+        if entry.get("isController"):
+            info, _ = read_plist(target / "Info.plist")
+            executable = (info or {}).get("CFBundleExecutable")
+            if not executable or not (target / executable).exists():
+                problems.append(
+                    f"{path.name}: isController = true nhưng {target.name} không có binary "
+                    f"nạp được. PreferenceLoader kiểm tra [bundle isLoaded] sau khi "
+                    f"lazyLoadBundle: và thay bằng trang lỗi nếu bundle không nạp.")
                 continue
-            if "entry" not in data:
-                problems.append(f"{entry.name}: thiếu khoá 'entry'")
+            declared = set()
+            for image in macho.read(target / executable):
+                declared |= image.defined_objc_classes()
+            detail = entry.get("detail")
+            if detail and detail not in declared:
+                problems.append(f"{path.name}: detail = {detail} nhưng {target.name} không "
+                                f"định nghĩa lớp đó")
+    return problems
 
+
+def check_tweak_layout(root: Path) -> list:
+    problems = []
+    dylibs = list(root.rglob("Library/MobileSubstrate/DynamicLibraries/*.dylib"))
+    if not dylibs:
+        return ["gói không chứa dylib nào trong Library/MobileSubstrate/DynamicLibraries"]
+
+    for dylib in dylibs:
+        filter_plist = dylib.with_suffix(".plist")
+        if not filter_plist.exists():
+            problems.append(f"{dylib.name}: thiếu file filter cùng tên — ElleKit không "
+                            f"biết nạp vào process nào")
+            continue
+        data, error = read_plist(filter_plist)
+        if data is None:
+            problems.append(f"{filter_plist.name}: {error}")
+            continue
+        bundles = (data.get("Filter") or {}).get("Bundles")
+        executables = (data.get("Filter") or {}).get("Executables")
+        if not bundles and not executables:
+            problems.append(f"{filter_plist.name}: Filter rỗng — dylib sẽ nạp vào MỌI "
+                            f"process, hoặc không process nào")
+    return problems
+
+
+# --- Điểm vào ----------------------------------------------------------------
+
+def check_package(deb: str) -> list:
+    problems = []
+    print(f"\n=== {Path(deb).name} ===")
+    with tempfile.TemporaryDirectory() as tmp:
+        subprocess.run(["dpkg-deb", "-x", deb, tmp], check=True)
+        root = Path(tmp)
+
+        for path in sorted(root.rglob("*")):
+            if path.is_file() and macho.is_macho(path):
+                problems += check_macho(path, str(path.relative_to(root)))
+
+        bundles = sorted(root.rglob("Library/PreferenceBundles/*.bundle"))
+        for bundle in bundles:
+            problems += check_preference_bundle(bundle, root)
+        problems += check_preference_loader_entries(root, bundles)
+        problems += check_tweak_layout(root)
+
+        if not bundles:
+            problems.append("gói không chứa preference bundle nào — sẽ không có mục "
+                            "OpenCarPlay trong Cài đặt")
     return problems
 
 
@@ -183,26 +231,16 @@ def main() -> None:
     if len(sys.argv) < 2:
         sys.exit("dùng: verify_package.py <file.deb> [...]")
 
-    all_problems = []
+    problems = []
     for deb in sys.argv[1:]:
-        print(f"\n=== {Path(deb).name} ===")
-        with tempfile.TemporaryDirectory() as tmp:
-            subprocess.run(["dpkg-deb", "-x", deb, tmp], check=True)
-            for path in sorted(Path(tmp).rglob("*")):
-                if not path.is_file():
-                    continue
-                head = path.read_bytes()[:4]
-                if head in (b"\xca\xfe\xba\xbe", b"\xcf\xfa\xed\xfe"):
-                    all_problems += check_macho(path)
-            all_problems += check_layout(Path(tmp))
+        problems += check_package(deb)
 
     print()
-    if all_problems:
+    if problems:
         print("KHÔNG ĐẠT — không phát hành:")
-        for problem in all_problems:
+        for problem in problems:
             print(f"  - {problem}")
         sys.exit(1)
-
     print("ĐẠT — gói an toàn để phát hành")
 
 

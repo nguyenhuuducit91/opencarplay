@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>items</key>
+	<array>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>Dùng ứng dụng iOS thông thường trên màn hình CarPlay.
+
+Khi công tắc này tắt, tweak không chạm vào bất cứ thứ gì — CarPlay hoạt động y như khi chưa cài.</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.opencarplay</string>
+			<key>key</key>
+			<string>Enabled</string>
+			<key>label</key>
+			<string>Bật OpenCarPlay</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>Ứng dụng hệ thống luôn bị chặn, dù có chọn hay không.</string>
+			<key>label</key>
+			<string>Ứng dụng</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkCell</string>
+			<key>detail</key>
+			<string>OCPApplicationListController</string>
+			<key>id</key>
+			<string>OCPApplicationsLink</string>
+			<key>label</key>
+			<string>Chọn ứng dụng</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>label</key>
+			<string>Hiển thị</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.opencarplay</string>
+			<key>key</key>
+			<string>AutoLaunch</string>
+			<key>label</key>
+			<string>Tự mở khi kết nối</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.opencarplay</string>
+			<key>key</key>
+			<string>HideStatusBar</string>
+			<key>label</key>
+			<string>Ẩn thanh trạng thái</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.opencarplay</string>
+			<key>key</key>
+			<string>FullScreen</string>
+			<key>label</key>
+			<string>Toàn màn hình</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<true/>
+			<key>defaults</key>
+			<string>com.opencarplay</string>
+			<key>key</key>
+			<string>ForceLandscape</string>
+			<key>label</key>
+			<string>Ép xoay ngang</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>Hai mục dưới đây thay đổi hành vi thật của CarPlay và chưa được kiểm chứng trên iOS 18.6. Nếu dashboard hoặc SpringBoard có vấn đề, tắt chúng rồi respring. Tweak cũng tự tắt nếu phát hiện SpringBoard khởi động lại liên tục.</string>
+			<key>label</key>
+			<string>Thử nghiệm</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.opencarplay</string>
+			<key>key</key>
+			<string>ExperimentalDiscovery</string>
+			<key>label</key>
+			<string>Đưa app lên dashboard</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.opencarplay</string>
+			<key>key</key>
+			<string>ExperimentalSceneHosting</string>
+			<key>label</key>
+			<string>Hiện app trên màn hình xe</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>Khảo sát runtime ghi kết quả vào /var/mobile/Media/OpenCarPlay/ để lấy về máy tính qua cáp USB.</string>
+			<key>label</key>
+			<string>Nhật ký và nghiên cứu</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.opencarplay</string>
+			<key>key</key>
+			<string>DebugLogging</string>
+			<key>label</key>
+			<string>Ghi log đầy đủ</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.opencarplay</string>
+			<key>key</key>
+			<string>RuntimeSurvey</string>
+			<key>label</key>
+			<string>Khảo sát runtime</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>com.opencarplay</string>
+			<key>key</key>
+			<string>SignalDiscovery</string>
+			<key>label</key>
+			<string>Ghi lại tín hiệu hệ thống</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>respring:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>label</key>
+			<string>Respring</string>
+		</dict>
+		<dict>
+			<key>action</key>
+			<string>resetSettings:</string>
+			<key>cell</key>
+			<string>PSButtonCell</string>
+			<key>isDestructive</key>
+			<true/>
+			<key>label</key>
+			<string>Đặt lại toàn bộ cài đặt</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>OpenCarPlay — mã nguồn mở, GPLv3. Không thu thập dữ liệu.
+
+Đưa ứng dụng tuỳ ý lên màn hình xe có thể gây mất tập trung khi lái và có thể vi phạm luật ở nơi bạn sống. Người sử dụng chịu hoàn toàn trách nhiệm.</string>
+		</dict>
+	</array>
+	<key>title</key>
+	<string>OpenCarPlay</string>
+</dict>
+</plist>

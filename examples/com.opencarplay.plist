@@ -3,8 +3,14 @@
 <!--
   OpenCarPlay — file cấu hình mẫu.
 
-  Chép tới:  /var/jb/var/mobile/Library/Preferences/com.opencarplay.plist
-  rồi respring (hoặc killall -9 SpringBoard).
+  Cách bình thường là dùng Cài đặt → OpenCarPlay. File này chỉ dành cho lúc chưa vào
+  được giao diện máy, hoặc để thấy toàn bộ khoá ở một chỗ.
+
+  Chép tới:  /var/mobile/Library/Preferences/com.opencarplay.plist
+  rồi:       killall -9 cfprefsd && killall -9 SpringBoard
+
+  killall cfprefsd là bắt buộc: cfprefsd giữ bản nhớ đệm của domain này và sẽ đè lên
+  file nếu bạn sửa file mà không báo cho nó.
 
   Mọi khoá đều tuỳ chọn; thiếu khoá nào thì dùng mặc định (tắt, trừ ForceLandscape).
 -->
@@ -55,7 +61,7 @@
 	     trên iOS 18.6, tweak sẽ từ chối chạy và ghi log thay vì crash — nhưng hãy
 	     chuẩn bị sẵn đường vào máy (SSH hoặc Filza) trước khi bật.
 	     Có lưới tự tắt: nếu SpringBoard nạp lại 4 lần trong 45 giây, tweak tự tạo
-	     /var/jb/var/mobile/Library/Preferences/com.opencarplay.disabled và ngừng hoạt động. -->
+	     /var/mobile/Library/Preferences/com.opencarplay.disabled và ngừng hoạt động. -->
 	<key>ExperimentalSceneHosting</key>
 	<false/>
 </dict>

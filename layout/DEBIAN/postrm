@@ -6,20 +6,25 @@
 
 set -e
 
-JBROOT=""
-[ -d /var/jb/usr/lib ] && JBROOT="/var/jb"
-PREFS_DIR="$JBROOT/var/mobile/Library/Preferences"
+PREFS_DIR="/var/mobile/Library/Preferences"
+LEGACY_PREFS_DIR="/var/jb/var/mobile/Library/Preferences"
 
 killall -9 CarPlay 2>/dev/null || true
 
 case "$1" in
     purge)
-        rm -f "$PREFS_DIR/com.opencarplay.plist"
-        rm -f "$PREFS_DIR/com.opencarplay.disabled"
-        rm -f "$PREFS_DIR/com.opencarplay.loads.plist"
-        rm -f "$PREFS_DIR"/com.opencarplay.*.payload.plist
+        for DIR in "$PREFS_DIR" "$LEGACY_PREFS_DIR"; do
+            rm -f "$DIR"/com.opencarplay.plist
+            rm -f "$DIR"/com.opencarplay.disabled
+            rm -f "$DIR"/com.opencarplay.loads.plist
+            rm -f "$DIR"/com.opencarplay.running-*
+            rm -f "$DIR"/com.opencarplay.*.payload.plist
+        done
+        # cfprefsd giữ bản nhớ đệm của domain; xoá file không thôi thì lần ghi sau
+        # nó dựng lại từ bộ nhớ.
+        killall -9 cfprefsd 2>/dev/null || true
         rm -rf /var/mobile/Media/OpenCarPlay
-        rm -rf "$JBROOT/var/mobile/Library/Logs/OpenCarPlay"
+        rm -rf /var/mobile/Library/Logs/OpenCarPlay
         echo "OpenCarPlay: đã xoá cấu hình và dữ liệu khảo sát."
         ;;
     remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)

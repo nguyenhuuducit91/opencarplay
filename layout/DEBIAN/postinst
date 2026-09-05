@@ -8,21 +8,39 @@
 
 set -e
 
-JBROOT=""
-[ -d /var/jb/usr/lib ] && JBROOT="/var/jb"
+PREFS_DIR="/var/mobile/Library/Preferences"
 
 # CarPlay.app chỉ chạy khi đang kết nối; không chạy thì lệnh này vô hại.
 killall -9 CarPlay 2>/dev/null || true
 
+# Cấu hình của bản <= 0.30 nằm sai chỗ (/var/jb/var/mobile/...) nên tweak không bao
+# giờ đọc được thứ người dùng bật trong Settings. Chuyển sang vị trí đúng.
+LEGACY="/var/jb$PREFS_DIR/com.opencarplay.plist"
+if [ -f "$LEGACY" ] && [ ! -f "$PREFS_DIR/com.opencarplay.plist" ]; then
+    mv "$LEGACY" "$PREFS_DIR/com.opencarplay.plist"
+    chown mobile:mobile "$PREFS_DIR/com.opencarplay.plist" 2>/dev/null || true
+    echo "OpenCarPlay: đã chuyển cấu hình cũ sang $PREFS_DIR/"
+fi
+
 # Nếu người dùng từng bị vòng lặp crash, kill switch có thể còn sót lại và sẽ chặn
 # bản vừa cài. Báo cho họ biết thay vì để tweak im lặng không hoạt động.
-KILLSWITCH="$JBROOT/var/mobile/Library/Preferences/com.opencarplay.disabled"
-if [ -f "$KILLSWITCH" ]; then
-    echo "OpenCarPlay: kill switch đang bật, tweak sẽ KHÔNG nạp."
-    echo "  Xoá để bật lại: rm $KILLSWITCH"
+for KILLSWITCH in "$PREFS_DIR/com.opencarplay.disabled" \
+                  "/var/jb$PREFS_DIR/com.opencarplay.disabled" \
+                  "/var/mobile/Media/OpenCarPlay/DISABLED"; do
+    if [ -f "$KILLSWITCH" ]; then
+        echo "OpenCarPlay: kill switch đang bật, tweak sẽ KHÔNG nạp."
+        echo "  Xoá để bật lại: rm $KILLSWITCH"
+    fi
+done
+
+# File STAGE là công cụ gỡ lỗi. Nếu còn sót lại từ lần chẩn đoán trước, nó sẽ giữ tweak
+# ở giai đoạn thấp và người dùng tưởng bản mới cũng hỏng.
+if [ -f /var/mobile/Media/OpenCarPlay/STAGE ]; then
+    echo "OpenCarPlay: còn file STAGE gỡ lỗi — tweak sẽ chạy ở giai đoạn rút gọn."
+    echo "  Xoá để chạy đầy đủ: rm /var/mobile/Media/OpenCarPlay/STAGE"
 fi
 
 echo "OpenCarPlay: đã cài. Respring để phần trong SpringBoard có hiệu lực,"
-echo "  rồi bật trong Settings → OpenCarPlay."
+echo "  rồi bật trong Cài đặt → OpenCarPlay."
 
 exit 0

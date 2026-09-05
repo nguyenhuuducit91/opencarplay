@@ -25,13 +25,55 @@ NSString *OCPRootedPath(NSString *absolutePath) {
 }
 
 NSString *OCPPreferencesPath(void) {
+    return [NSString stringWithFormat:@"/var/mobile/Library/Preferences/%@.plist",
+                                      OCPPreferencesDomain];
+}
+
+NSString *OCPLegacyPreferencesPath(void) {
     return OCPRootedPath([NSString stringWithFormat:@"/var/mobile/Library/Preferences/%@.plist",
                                                     OCPPreferencesDomain]);
 }
 
+void OCPMigrateLegacyPreferences(void) {
+    NSString *legacy = OCPLegacyPreferencesPath();
+    NSString *current = OCPPreferencesPath();
+    if ([legacy isEqualToString:current]) return;   // rootful: hai đường dẫn là một
+
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    if (![fileManager fileExistsAtPath:legacy]) return;
+    if ([fileManager fileExistsAtPath:current]) {
+        // Vị trí đúng đã có dữ liệu — nó thắng. Chỉ dọn file cũ đi.
+        [fileManager removeItemAtPath:legacy error:NULL];
+        return;
+    }
+    [fileManager moveItemAtPath:legacy toPath:current error:NULL];
+}
+
+NSDictionary<NSString *, id> *OCPPreferencesCopyRaw(void) {
+    @try {
+        CFStringRef domain = (__bridge CFStringRef)OCPPreferencesDomain;
+        CFPreferencesAppSynchronize(domain);
+
+        NSArray *keys = CFBridgingRelease(CFPreferencesCopyKeyList(
+            domain, kCFPreferencesCurrentUser, kCFPreferencesAnyHost));
+        if (keys.count > 0) {
+            NSDictionary *values = CFBridgingRelease(CFPreferencesCopyMultiple(
+                (__bridge CFArrayRef)keys, domain,
+                kCFPreferencesCurrentUser, kCFPreferencesAnyHost));
+            if ([values isKindOfClass:[NSDictionary class]] && values.count > 0) return values;
+        }
+
+        NSDictionary *fromFile = [NSDictionary dictionaryWithContentsOfFile:OCPPreferencesPath()];
+        if ([fromFile isKindOfClass:[NSDictionary class]]) return fromFile;
+    } @catch (NSException *exception) {
+        // Đọc cấu hình không bao giờ được phép làm chết process gọi nó.
+    }
+    return @{};
+}
+
 NSString *OCPKillSwitchPath(void) {
-    return OCPRootedPath([NSString stringWithFormat:@"/var/mobile/Library/Preferences/%@.disabled",
-                                                    OCPPreferencesDomain]);
+    return [NSString stringWithFormat:@"/var/mobile/Library/Preferences/%@.disabled",
+                                      OCPPreferencesDomain];
 }
 
 NSString *OCPMediaKillSwitchPath(void) {
@@ -40,6 +82,13 @@ NSString *OCPMediaKillSwitchPath(void) {
 
 BOOL OCPKillSwitchEngaged(void) {
     NSFileManager *fileManager = [NSFileManager defaultManager];
-    return [fileManager fileExistsAtPath:OCPKillSwitchPath()] ||
-           [fileManager fileExistsAtPath:OCPMediaKillSwitchPath()];
+    // Cả vị trí cũ lẫn mới: người dùng có thể đã tạo kill switch từ bản trước.
+    for (NSString *path in @[ OCPKillSwitchPath(),
+                              OCPRootedPath([NSString stringWithFormat:
+                                  @"/var/mobile/Library/Preferences/%@.disabled",
+                                  OCPPreferencesDomain]),
+                              OCPMediaKillSwitchPath() ]) {
+        if ([fileManager fileExistsAtPath:path]) return YES;
+    }
+    return NO;
 }

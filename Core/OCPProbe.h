@@ -87,6 +87,21 @@ typedef NS_ENUM(NSInteger, OCPFeature) {
 /// Tạo instance của một private class bằng +alloc/-init. nil nếu class không tồn tại.
 + (nullable id)instantiateClassNamed:(NSString *)className;
 
+/// Tạo instance bằng một initialiser có tham số, ví dụ -initWithFoo:bar:.
+///
+/// VÌ SAO CẦN HÀM RIÊNG thay vì [[cls alloc] + invokeTarget:]
+///
+/// Dưới ARC, `id obj = [cls alloc]` làm ARC nhận quyền sở hữu +1 và chèn một release
+/// ở cuối scope. Nhưng initialiser TIÊU THỤ receiver: sau khi -init... chạy, quyền sở
+/// hữu đó không còn thuộc biến kia nữa. Release do ARC chèn thành ra thừa một lần —
+/// object bị giải phóng sớm và process chết ở một chỗ hoàn toàn khác, rất khó lần ra.
+///
+/// Hàm này giữ kết quả của +alloc trong `void *` để ARC không đụng vào, rồi dùng
+/// __bridge_transfer nhận đúng một lần +1 mà initialiser trả về.
++ (nullable id)instantiateClassNamed:(NSString *)className
+                         initialiser:(NSString *)selectorName
+                           arguments:(nullable NSArray *)arguments;
+
 /// Gọi selector với số tham số bất kỳ, dùng chữ ký thật lấy từ runtime.
 ///
 /// `arguments` nhận object thường, NSNull cho nil, và NSNumber cho tham số vô hướng

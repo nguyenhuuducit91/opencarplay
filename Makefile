@@ -4,22 +4,18 @@
 
 export THEOS_PACKAGE_SCHEME = rootless
 
-# arm64e, nhưng KHÔNG sinh lệnh pointer authentication.
+# arm64e.
 #
-# Ba ràng buộc phải thoả cùng lúc, tìm ra qua bốn lần thử trên máy thật:
+# Process hệ thống trên A12+ là arm64e và dyld từ chối thư viện arm64:
+# "incompatible architecture (have 'arm64', need 'arm64e')". Không có đường vòng —
+# đánh dấu slice arm64 thành arm64e thì dyld lại báo "bad bind opcode 0x09" vì luật
+# đọc binding của arm64e khác.
 #
-#   1. Phải là arm64e. Process hệ thống trên A12+ là arm64e và dyld từ chối thư viện
-#      arm64: "incompatible architecture (have 'arm64', need 'arm64e')".
-#   2. Không được chứa lệnh PAC. Toolchain Linux (clang 13 + ld64-609) sinh ra lệnh
-#      xác thực con trỏ mà iOS 18.6 từ chối: lời gọi Objective-C đầu tiên đã chết với
-#      "possible pointer authentication failure".
-#   3. Phải dùng chained fixups. Đánh dấu binary arm64 thành arm64e mà giữ binding cổ
-#      điển thì dyld báo "bad bind opcode 0x09" — luật đọc bind của arm64e khác.
-#
-# -fno-ptrauth-* thoả cả ba: binary vẫn là arm64e đúng định dạng (dyld xử lý bình
-# thường, chained fixups đúng loại), nhưng trình biên dịch không phát sinh lệnh PAC nào.
-#
-# ĐÁNH ĐỔI: thư viện không được PAC bảo vệ. Có Xcode trên macOS thì bỏ các cờ này.
+# -fno-ptrauth-*: trình biên dịch không sinh lệnh PAC trong mã của chính nó. Đây KHÔNG
+# phải để né một mâu thuẫn ABI như ghi chú cũ nói — linker vẫn sinh __auth_stubs dùng
+# braa và dyld vẫn ký con trỏ trong __auth_got (đo được: 82 lệnh braa, pointer_format
+# ARM64E), tức binary theo đúng ABI arm64e. Giữ các cờ này vì đó là cấu hình duy nhất
+# đã thực sự chạy trên máy; bỏ chúng cần một lần thử có kiểm chứng, không phải suy đoán.
 ARCHS = arm64e
 TARGET = iphone:clang:16.5:15.0
 
@@ -35,58 +31,46 @@ OpenCarPlay_FILES += $(wildcard Core/*.m) $(wildcard Core/*.mm) $(wildcard Core/
 OpenCarPlay_CFLAGS = -fobjc-arc -Wall -Wno-unused-variable -ICore -ITweak/CarPlayApp -ITweak/SpringBoard
 OpenCarPlay_CFLAGS += -fno-ptrauth-calls -fno-ptrauth-returns -fno-ptrauth-indirect-gotos -fno-ptrauth-auth-traps
 OpenCarPlay_FRAMEWORKS = UIKit
-# CydiaSubstrate được Theos liên kết qua @rpath khi dùng scheme rootless, nhưng nó
-# KHÔNG sinh LC_RPATH tương ứng. Hậu quả: dyld không resolve được phụ thuộc bắt buộc
-# này và GIẾT process đang nạp dylib — SpringBoard chết trước cả khi constructor chạy,
-# nên mọi kill switch bên trong code đều vô dụng. Đây là nguyên nhân của ba lần treo máy.
 OpenCarPlay_LDFLAGS = -Wl,-segalign,4000
 OpenCarPlay_LDFLAGS += -Wl,-rpath,/var/jb/Library/Frameworks
 OpenCarPlay_LDFLAGS += -Wl,-rpath,/Library/Frameworks
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
-# Preference bundle: xem Preferences/Makefile.
+# Preference bundle — bảng cài đặt trong Settings.
 #
-# GHI CHÚ CŨ (giữ lại vì lý do vẫn còn giá trị):
+# Bật lại ở 0.31.0 sau khi đo lại Mach-O bằng hằng số ĐÚNG. Các bản 0.17–0.30 loại nó
+# ra dựa trên hai phép đo sai trong scripts/:
 #
-# ld64-609 của toolchain Linux sinh ra LC_DYLD_CHAINED_FIXUPS RỖNG (datasize = 0) cho
-# binary của bundle, trong khi dylib chính lại có dữ liệu hợp lệ (1440 byte). Binary với
-# chained fixups rỗng không bind được gì, nên Settings chết ngay khi dlopen nó — dù bundle
-# không khai báo lớp nào, dù đã tắt sinh lệnh PAC.
-#
-# Bỏ bundle ra khỏi gói để phần còn lại có cơ hội chạy. Cấu hình dùng file plist trực tiếp.
-# Muốn có lại bảng cài đặt thì cần toolchain sinh được chained fixups hợp lệ — thực tế là
-# Xcode trên macOS.
-#
-# Preference bundle bị loại khỏi bản dựng, lần này có bằng chứng dứt khoát.
-#
-# Bundle được Settings nạp bằng dlopen và crash ngay trong constructor tại
-# NSClassFromString -> objc_msgSend, với địa chỉ mang nguyên bits chữ ký PAC
-# (0x0020000...). Đây là mâu thuẫn không cờ biên dịch nào chữa được:
-#
-#   arm64e mặc định   -> clang 13 sinh lệnh PAC không đúng chuẩn iOS 18.6 -> crash
-#   -fno-ptrauth-*    -> dyld vẫn ký con trỏ GOT, mã không xác thực       -> crash
-#
-# Cần toolchain sinh arm64e đúng ABI (Xcode trên macOS). Đến lúc đó, cấu hình dùng file
-# plist trực tiếp.
-#
-# SUBPROJECTS += Preferences
-# include $(THEOS_MAKE_PATH)/aggregate.mk
+#   • LC_DYLD_CHAINED_FIXUPS bị ghi là 0x80000033 — đó là LC_DYLD_EXPORTS_TRIE.
+#     Script đọc export trie rồi kết luận "chained fixups rỗng". Đo lại: binary của
+#     bundle có 944 byte chained fixups, pointer_format ARM64E, y hệt dylib này.
+#   • Số lệnh PAC đếm bằng objdump của Linux, mà objdump không đọc được Mach-O
+#     ("file format not recognized") nên luôn trả về 0. Đếm lại bằng cách quét opcode:
+#     __auth_stubs của dylib này có 82 lệnh braa. Tức là binary vẫn theo đúng ABI
+#     arm64e — dyld ký con trỏ trong __auth_got, auth stub xác thực lại. Không có
+#     mâu thuẫn nào cần né.
+SUBPROJECTS += Preferences
+include $(THEOS_MAKE_PATH)/aggregate.mk
 
-# Chuẩn hoá quyền trước khi đóng gói: umask của máy build (thường 002) để lại bit
-# group-write, không phù hợp cho file cài vào hệ thống.
-# Sửa phụ thuộc CydiaSubstrate.
+# Sau khi stage: đổi phụ thuộc CydiaSubstrate sang đường dẫn tuyệt đối, rồi chuẩn hoá
+# quyền (umask của máy build — thường 002 — để lại bit group-write, không phù hợp cho
+# file cài vào hệ thống).
 #
-# Theos scheme rootless liên kết CydiaSubstrate qua @rpath nhưng không sinh LC_RPATH,
-# và LDFLAGS không chèn được vào (Theos dựng lệnh link theo cách riêng). Kết quả là một
-# phụ thuộc BẮT BUỘC không resolve được: dyld giết luôn process đang nạp dylib, tức
-# SpringBoard chết trước cả khi constructor chạy — mọi kill switch trong code đều vô dụng.
+# Theos CÓ sinh LC_RPATH (kiểm chứng: dylib mang /var/jb/Library/Frameworks và
+# @loader_path/.jbroot/Library/Frameworks), nên @rpath vốn đã resolve được. Đổi sang
+# đường tuyệt đối chỉ để bớt một biến số. Sửa Mach-O làm hỏng chữ ký nên phải ký lại.
 #
-# Đổi sang đường dẫn tuyệt đối của jailbreak rootless rồi ký lại, vì sửa Mach-O làm
-# hỏng chữ ký cũ.
-# GHI CHÚ: đã thử cài thêm vào usr/lib/TweakInject vì tưởng ElleKit đọc đường dẫn đó.
-# Sai: dpkg báo thư mục không tồn tại trên máy, tức ElleKit ở đây dùng đúng
-# Library/MobileSubstrate/DynamicLibraries mà Theos vẫn cài.
+# KHÔNG làm weak phụ thuộc này. Bản 0.24–0.30 có làm, dựa trên chẩn đoán "Theos không
+# sinh LC_RPATH" đã nêu ở trên — chẩn đoán đó sai. Weak còn nguy hiểm hơn: nếu
+# CydiaSubstrate thật sự vắng mặt thì MSHookMessageEx bằng NULL và Logos gọi thẳng vào
+# đó, tức crash ở chỗ khó lần ra thay vì một lỗi dyld nói rõ nguyên nhân.
+# Tweak khai báo Depends: ellekit, mà ellekit cài sẵn CydiaSubstrate.framework.
+
+# ldid không nằm trong PATH mặc định của make (shell không nạp profile của người dùng).
+LDID ?= $(firstword $(wildcard $(HOME)/.local/bin/ldid) \
+                    $(wildcard $(THEOS)/toolchain/linux/iphone/bin/ldid) \
+                    $(shell command -v ldid 2>/dev/null) ldid)
 
 after-stage::
 	@for dylib in `find $(THEOS_STAGING_DIR) -name '*.dylib'`; do \
@@ -95,9 +79,9 @@ after-stage::
 			@rpath/CydiaSubstrate.framework/CydiaSubstrate \
 			/var/jb/Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate \
 			$$dylib || exit 1; \
-		python3 scripts/weaken_substrate.py $$dylib || exit 1; \
-		ldid -S $$dylib || exit 1; \
+		$(LDID) -S $$dylib || exit 1; \
 	done
+	@python3 scripts/stamp_version.py $(THEOS_STAGING_DIR)
 	@find $(THEOS_STAGING_DIR) -type d -exec chmod 755 {} +
 	@find $(THEOS_STAGING_DIR) -type f -exec chmod 644 {} +
 	@find $(THEOS_STAGING_DIR) -name '*.dylib' -exec chmod 755 {} +

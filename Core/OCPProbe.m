@@ -9,6 +9,7 @@
 #import "OCPProbe.h"
 #import "OCPLog.h"
 
+#import <objc/message.h>
 #import <objc/runtime.h>
 
 @implementation OCPProbe
@@ -447,6 +448,71 @@
         return instance;
     } @catch (NSException *exception) {
         OCPLogError_(@"khởi tạo %@ thất bại: %@", className, exception.reason);
+        return nil;
+    }
+}
+
++ (nullable id)instantiateClassNamed:(NSString *)className
+                         initialiser:(NSString *)selectorName
+                           arguments:(nullable NSArray *)arguments {
+    Class cls = [self classNamed:className];
+    if (cls == Nil) {
+        OCPLogC(OCPLogCompatibility, @"class không tồn tại: %@", className);
+        return nil;
+    }
+
+    SEL selector = NSSelectorFromString(selectorName);
+    if (selector == NULL || ![cls instancesRespondToSelector:selector]) {
+        OCPLogC(OCPLogCompatibility, @"initialiser không tồn tại: -[%@ %@]",
+                className, selectorName);
+        return nil;
+    }
+
+    NSMethodSignature *signature = [cls instanceMethodSignatureForSelector:selector];
+    if (signature == nil) return nil;
+    if (![self signatureReturnsObject:signature]) {
+        OCPLogC(OCPLogCompatibility, @"-[%@ %@] không trả về object", className, selectorName);
+        return nil;
+    }
+    NSUInteger expected = signature.numberOfArguments - 2;
+    if (expected != arguments.count) {
+        OCPLogC(OCPLogCompatibility, @"-[%@ %@] cần %lu tham số, được đưa %lu — bỏ qua",
+                className, selectorName, (unsigned long)expected, (unsigned long)arguments.count);
+        return nil;
+    }
+
+    // Mọi kiểm tra đã xong TRƯỚC khi cấp phát: từ đây trở đi không còn nhánh nào rời
+    // hàm mà chưa trao quyền sở hữu cho ARC, trừ trường hợp initialiser ném exception.
+    void *allocated = ((void *(*)(id, SEL))objc_msgSend)(cls, @selector(alloc));
+    if (allocated == NULL) return nil;
+
+    @try {
+        NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
+        invocation.selector = selector;
+        // __bridge: NSInvocation không giữ target (chưa gọi -retainArguments), nên
+        // không có thêm quyền sở hữu nào phát sinh ở đây.
+        invocation.target = (__bridge id)allocated;
+
+        for (NSUInteger i = 0; i < arguments.count; i++) {
+            if (![self setArgument:arguments[i] atIndex:i + 2 onInvocation:invocation]) {
+                OCPLogC(OCPLogCompatibility, @"-[%@ %@]: không đặt được tham số %lu",
+                        className, selectorName, (unsigned long)i);
+                // Chưa gọi initialiser nên +alloc vẫn còn nguyên quyền sở hữu ở đây.
+                return (__bridge_transfer id)allocated;
+            }
+        }
+
+        [invocation invoke];
+
+        void *result = NULL;
+        [invocation getReturnValue:&result];
+        if (result == NULL) return nil;   // initialiser trả nil: nó đã tự dọn dẹp
+        return (__bridge_transfer id)result;
+    } @catch (NSException *exception) {
+        // Initialiser ném exception: không biết nó đã tiêu thụ receiver hay chưa, nên
+        // không đụng vào quyền sở hữu. Rò một object còn hơn giải phóng hai lần.
+        OCPLogError_(@"khởi tạo %@ qua -%@ thất bại: %@ — %@",
+                     className, selectorName, exception.name, exception.reason);
         return nil;
     }
 }

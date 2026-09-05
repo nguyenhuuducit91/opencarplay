@@ -178,7 +178,7 @@ typedef NS_ENUM(NSInteger, OCPLogCategory) {
 
 - Mặc định: chỉ `OCPLogError` được ghi. `DebugLogging = YES` mới bật hết.
 - Đích: `os_log` (subsystem `com.opencarplay.tweak`) + tuỳ chọn file
-  `/var/jb/var/mobile/Library/Logs/OpenCarPlay/ocp.log` có xoay vòng theo kích thước.
+  `/var/mobile/Library/Logs/OpenCarPlay/ocp.log` có xoay vòng theo kích thước.
 - Định dạng: `[OpenCarPlay][CarPlay] Connected — display 1280x720@2.0`
 
 ### 4.4 `OCPPreferences` + `OCPAppRegistry`

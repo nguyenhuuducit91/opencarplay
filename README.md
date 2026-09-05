@@ -2,9 +2,9 @@
 
 Tweak jailbreak mã nguồn mở cho phép dùng một số ứng dụng iOS thông thường trên màn hình CarPlay.
 
-> **Trạng thái: đang phát triển — Phase 2/14.** Bản hiện tại *chưa* đưa được app lên CarPlay.
-> Nó mới dựng nền: nạp đúng process, không ảnh hưởng CarPlay nguyên bản. Xem
-> [lộ trình](ARCHITECTURE.md#9-lộ-trình--tiêu-chí-hoàn-thành-từng-phase).
+> **Trạng thái: đang phát triển.** Phần nền và bảng cài đặt đã xong; phần đưa app lên
+> dashboard và gắn giao diện lên màn hình xe là **thử nghiệm, chưa kiểm chứng trên iOS 18.6**
+> và mặc định tắt. Xem [lộ trình](ARCHITECTURE.md#9-lộ-trình--tiêu-chí-hoàn-thành-từng-phase).
 
 ---
 
@@ -59,10 +59,9 @@ Sileo → Sources → thêm URL trên → cài **OpenCarPlay** → respring.
 3. Cài bằng Sileo (hoặc `dpkg -i`)
 4. Respring — chỉ cần khi thay đổi ảnh hưởng SpringBoard; thay đổi phía dashboard chỉ cần
    `killall -9 CarPlay`
-5. Bật OpenCarPlay trong **Settings → OpenCarPlay**. Danh sách ứng dụng hiện sửa bằng Filza
-   trong `com.opencarplay.plist` — xem ghi chú bên dưới
-6. Cắm CarPlay
-7. Chọn app được phép
+5. Respring, rồi mở **Cài đặt → OpenCarPlay** và bật công tắc chính
+6. **Cài đặt → OpenCarPlay → Chọn ứng dụng** — danh sách app đã cài hiện ngay trong bảng
+7. Cắm CarPlay
 
 Hoặc dùng script (tự build → copy → cài → restart):
 
@@ -167,7 +166,8 @@ Sau đó, trước khi jailbreak lại:
 
 1. Bật **Safe Mode** trong Dopamine (jailbreak nhưng không nạp tweak)
 2. Xoá file cấu hình — chỉ vậy là đủ để mọi tính năng trở về mặc định (tắt hết):
-   `/var/jb/var/mobile/Library/Preferences/com.opencarplay.plist`
+   `/var/mobile/Library/Preferences/com.opencarplay.plist`, rồi `killall -9 cfprefsd`
+   (cfprefsd giữ bản nhớ đệm và sẽ dựng lại file nếu không báo cho nó)
 3. Cài bản mới nhất rồi respring
 
 Tweak có hai lưới an toàn tự động:
@@ -183,7 +183,7 @@ Nếu cần tắt thủ công:
 
 ```bash
 ssh mobile@<device>
-touch /var/jb/var/mobile/Library/Preferences/com.opencarplay.disabled
+touch /var/mobile/Library/Preferences/com.opencarplay.disabled
 sbreload
 ```
 
@@ -201,8 +201,7 @@ dylib đã nạp, trạng thái kill switch.
 
 ## Logs
 
-Mặc định chỉ ghi lỗi. Bật đầy đủ bằng `DebugLogging = YES` trong
-`/var/jb/var/mobile/Library/Preferences/com.opencarplay.plist`.
+Mặc định chỉ ghi lỗi. Bật đầy đủ trong **Cài đặt → OpenCarPlay → Ghi log đầy đủ**.
 
 ```bash
 ./scripts/collect_logs.sh                 # từ máy build
@@ -242,30 +241,25 @@ trên iOS 18.6.2 hay không, thay vì đoán.
 
 ### Cấu hình
 
-Dùng **Settings → OpenCarPlay**, hoặc sửa trực tiếp
-`/var/jb/var/mobile/Library/Preferences/com.opencarplay.plist` — xem
-[`examples/com.opencarplay.plist`](examples/com.opencarplay.plist).
+Dùng **Cài đặt → OpenCarPlay**. Bảng gồm: nhóm trạng thái (phiên bản, lần cuối tweak nạp
+được vào SpringBoard, số ứng dụng đã chọn), công tắc chính, trình chọn ứng dụng liệt kê app
+đã cài trên máy, các tuỳ chọn hiển thị, hai cổng thử nghiệm, nhóm nhật ký, nút respring và
+nút đặt lại.
 
-Bảng cài đặt ghi thẳng vào file đó và bắn Darwin notification, nên thay đổi có hiệu lực ngay
-mà không cần respring.
+Bảng cài đặt ghi qua `CFPreferences` rồi `CFPreferencesAppSynchronize` và bắn Darwin
+notification `com.opencarplay.prefs-changed`, nên thay đổi có hiệu lực ngay mà không cần
+respring. File cấu hình nằm ở `/var/mobile/Library/Preferences/com.opencarplay.plist` — xem
+[`examples/com.opencarplay.plist`](examples/com.opencarplay.plist) nếu cần sửa tay.
 
-**Bảng cài đặt không định nghĩa lớp Objective-C nào lúc biên dịch** — cố ý. Bản trước có một
-binary với lớp kế thừa `PSListController`; khi Settings nạp bundle, libobjc phải bind
-`_OBJC_CLASS_$_PSListController` để dựng superclass, việc bind đó đi qua chained fixups do
-toolchain Linux sinh ra, và nó chết ngay trong `readClass()` với `EXC_BREAKPOINT`.
-
-Dylib chính không gặp lỗi này vì nó tra cứu mọi class qua `NSClassFromString` và có đúng **0**
-external Objective-C class. Bảng cài đặt nay áp dụng cùng nguyên tắc: binary chỉ chứa hàm C và
-một constructor dựng lớp điều khiển bằng `objc_allocateClassPair` lúc chạy. `__objc_classlist`
-rỗng thì `readClass()` không có gì để hỏng.
-
-Đổi lại, bảng chỉ có các switch đọc/ghi qua cơ chế `defaults`; việc chọn ứng dụng phải sửa
-`AllowedApplications` trong file cấu hình bằng Filza.
+> **Không** có tiền tố `/var/jb` ở đường dẫn đó. Jailbreak rootless dời `/Library`, `/usr`,
+> `/Applications`; nó không dời `/var/mobile`, và `cfprefsd` — nơi Settings ghi qua — luôn làm
+> việc trên hệ thống file thật. Bản `<= 0.30` đọc `/var/jb/var/mobile/...` nên không bao giờ
+> thấy thứ người dùng vừa bật; `postinst` của 0.31 tự chuyển cấu hình cũ sang đúng chỗ.
 
 | Khoá | Mặc định | Ý nghĩa |
 |---|---|---|
 | `Enabled` | `NO` | Công tắc chính; `NO` thì tweak không đổi gì trong hệ thống |
-| `AllowedApplications` | `[]` | Bundle id được phép dùng với CarPlay |
+| `AllowedApplications` | `[]` | Bundle id được phép dùng với CarPlay (đặt qua trình chọn trong bảng cài đặt) |
 | `AutoLaunch` | `NO` | Tự mở app khi CarPlay kết nối |
 | `HideStatusBar` / `FullScreen` | `NO` | Trình bày trên màn hình xe |
 | `ForceLandscape` | `YES` | Ép app xoay ngang |

@@ -54,10 +54,9 @@ static NSString *const kErrorDomain = @"com.opencarplay.window";
     // Nguồn CADisplay: dựng cấu hình từ nó.
     Class caDisplayClass = [OCPProbe classNamed:@"CADisplay"];
     if (caDisplayClass != Nil && [backing isKindOfClass:caDisplayClass]) {
-        id allocated = [fbsConfigurationClass alloc];
-        id built = [OCPProbe invokeTarget:allocated
-                                 selector:@"initWithCADisplay:isMainDisplay:"
-                                arguments:@[ backing, @NO ]];
+        id built = [OCPProbe instantiateClassNamed:@"FBSDisplayConfiguration"
+                                       initialiser:@"initWithCADisplay:isMainDisplay:"
+                                         arguments:@[ backing, @NO ]];
         if (built != nil) return built;
         if (error) *error = [self errorWithStage:@"DisplayConfiguration"
                                           detail:@"initWithCADisplay:isMainDisplay: thất bại"];
@@ -80,8 +79,7 @@ static NSString *const kErrorDomain = @"com.opencarplay.window";
         return nil;
     }
 
-    Class windowClass = [OCPProbe classNamed:@"UIRootSceneWindow"];
-    if (windowClass == Nil) {
+    if ([OCPProbe classNamed:@"UIRootSceneWindow"] == Nil) {
         if (error) *error = [self errorWithStage:@"Window"
                                           detail:@"UIRootSceneWindow không tồn tại — xem RESEARCH.md Q6"];
         return nil;
@@ -95,14 +93,14 @@ static NSString *const kErrorDomain = @"com.opencarplay.window";
     id displayConfiguration = [self frontBoardConfigurationFrom:configuration error:error];
     if (displayConfiguration == nil) return nil;
 
-    UIWindow *window = nil;
-    @try {
-        id allocated = [windowClass alloc];
-        window = [OCPProbe invokeTarget:allocated
-                               selector:@"initWithDisplayConfiguration:"
-                              arguments:@[ displayConfiguration ]];
-    } @catch (NSException *exception) {
-        if (error) *error = [self errorWithStage:@"Window" detail:exception.reason ?: @"exception"];
+    // Qua instantiateClassNamed:initialiser: — xem ghi chú ở OCPProbe.h về việc tách
+    // +alloc và -init dưới ARC làm object bị release thừa một lần.
+    UIWindow *window = [OCPProbe instantiateClassNamed:@"UIRootSceneWindow"
+                                           initialiser:@"initWithDisplayConfiguration:"
+                                             arguments:@[ displayConfiguration ]];
+    if (window == nil) {
+        if (error) *error = [self errorWithStage:@"Window"
+                                          detail:@"-initWithDisplayConfiguration: trả nil"];
         return nil;
     }
 

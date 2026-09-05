@@ -46,8 +46,8 @@ FOUNDATION_EXPORT NSString *const OCPPreferencesDidChangeNotification;
 /// sai ở đó nghĩa là SpringBoard chết lặp, không phải chỉ mất tính năng.
 @property (nonatomic, readonly) BOOL experimentalSceneHosting;
 
-/// File preferences có tồn tại không (phân biệt "chưa cấu hình" với "cấu hình tắt").
-@property (nonatomic, readonly) BOOL fileExists;
+/// Đã có cấu hình lưu lại chưa (phân biệt "chưa cấu hình bao giờ" với "cấu hình tắt").
+@property (nonatomic, readonly) BOOL hasStoredConfiguration;
 
 /// Nạp lại từ đĩa và phát OCPPreferencesDidChangeNotification.
 - (void)reload;

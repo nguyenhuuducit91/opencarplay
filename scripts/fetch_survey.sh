@@ -5,7 +5,7 @@
 #   ./scripts/fetch_survey.sh [thư_mục_đích]
 #
 # Bật khảo sát trước bằng cách đặt RuntimeSurvey = YES trong
-#   /var/jb/var/mobile/Library/Preferences/com.opencarplay.plist
+#   /var/mobile/Library/Preferences/com.opencarplay.plist
 # rồi respring (hoặc killall -9 CarPlay để khảo sát process dashboard).
 
 set -e
@@ -23,7 +23,7 @@ echo "==> tìm file khảo sát trong /var/mobile/Media$REMOTE_DIR"
 FILES=$(afcclient ls "$REMOTE_DIR" 2>/dev/null | grep -i '^survey-.*\.txt$' || true)
 if [ -z "$FILES" ]; then
     echo "Chưa có file nào."
-    echo "Kiểm tra: RuntimeSurvey = YES trong com.opencarplay.plist, và đã respring chưa?"
+    echo "Kiểm tra: Cài đặt → OpenCarPlay → Khảo sát runtime đã bật chưa, và đã respring chưa?"
     exit 2
 fi
 

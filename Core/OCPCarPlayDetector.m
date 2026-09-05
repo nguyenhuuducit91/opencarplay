@@ -157,8 +157,7 @@ static const NSTimeInterval kDiscoveryDuration = 45.0;
 
 - (void)loadDiscoveryPreference {
     @try {
-        NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:OCPPreferencesPath()];
-        id value = prefs[@"SignalDiscovery"];
+        id value = OCPPreferencesCopyRaw()[@"SignalDiscovery"];
         _discoveryMode = [value respondsToSelector:@selector(boolValue)] ? [value boolValue] : NO;
     } @catch (NSException *exception) {
         _discoveryMode = NO;

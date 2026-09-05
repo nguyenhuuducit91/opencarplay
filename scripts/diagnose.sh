@@ -99,7 +99,10 @@ info "trên thiết bị :  $JBROOT/usr/bin/log stream --predicate 'subsystem ==
 
 hr
 echo "9. KHẢO SÁT RUNTIME"
-PREFS="$JBROOT/var/mobile/Library/Preferences/com.opencarplay.plist"
+# /var/mobile không bị jailbreak rootless dời đi — cfprefsd và Settings đều
+# làm việc trên hệ thống file thật.
+PREFS="/var/mobile/Library/Preferences/com.opencarplay.plist"
+LEGACY_PREFS="/var/jb/var/mobile/Library/Preferences/com.opencarplay.plist"
 if [ -f "$PREFS" ]; then
     ok "preferences: $PREFS"
     for k in Enabled DebugLogging RuntimeSurvey SignalDiscovery; do
@@ -108,7 +111,11 @@ if [ -f "$PREFS" ]; then
     done
 else
     info "chưa có preferences — mọi tuỳ chọn dùng giá trị mặc định (tắt)"
-    info "bật khảo sát: tạo $PREFS với RuntimeSurvey = true rồi respring"
+    info "bật trong: Cài đặt → OpenCarPlay"
+fi
+if [ -f "$LEGACY_PREFS" ]; then
+    no "còn cấu hình ở vị trí CŨ: $LEGACY_PREFS"
+    no "  bản <= 0.30 ghi vào đây và không process nào đọc. Cài lại 0.31+ để tự chuyển."
 fi
 SURVEYDIR=/var/mobile/Media/OpenCarPlay
 if [ -d "$SURVEYDIR" ]; then
@@ -121,7 +128,7 @@ fi
 
 hr
 echo "10. CÔNG TẮC AN TOÀN"
-KILL="$JBROOT/var/mobile/Library/Preferences/com.opencarplay.disabled"
+KILL="/var/mobile/Library/Preferences/com.opencarplay.disabled"
 if [ -f "$KILL" ]; then
     no "KILL SWITCH ĐANG BẬT — tweak sẽ không nạp. Xoá: rm $KILL"
 else

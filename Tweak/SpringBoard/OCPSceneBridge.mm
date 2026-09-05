@@ -130,6 +130,26 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *OCPBridgeRequirements(vo
             return nil;
         }
 
+        // Ba selector dưới đây được gọi trên chính đối tượng này. Không đưa vào bảng
+        // tiền đề ở đầu file được vì bảng đó tra theo TÊN CLASS, mà tên class của scene
+        // manager là thứ ta không được phép đoán. Kiểm tra ngay trên đối tượng thật, và
+        // kiểm tra TRƯỚC khi tạo ra bất cứ thứ gì — thiếu một selector ở giữa chuỗi
+        // nghĩa là bỏ lại một scene đã dựng dở.
+        for (NSString *required in @[ @"displayIdentity",
+                                      @"_sceneIdentityForApplication:createPrimaryIfRequired:",
+                                      @"fetchOrCreateApplicationSceneHandleForRequest:" ]) {
+            if (![sceneManager respondsToSelector:NSSelectorFromString(required)]) {
+                if (error) {
+                    *error = [[self class] errorForStage:OCPBridgeStageResolveSceneManager
+                                                  detail:[NSString stringWithFormat:
+                                                          @"-[%@ %@] không tồn tại",
+                                                          NSStringFromClass([sceneManager class]),
+                                                          required]];
+                }
+                return nil;
+            }
+        }
+
         id displayIdentity = [OCPProbe invoke:sceneManager selector:@"displayIdentity"];
 
         // Bước 3 — định danh scene, tạo mới nếu ứng dụng chưa có.
@@ -165,10 +185,9 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *OCPBridgeRequirements(vo
         self.sceneHandle = sceneHandle;
 
         // Bước 5 — entity bọc scene handle.
-        id entityAllocated = [[OCPProbe classNamed:@"SBDeviceApplicationSceneEntity"] alloc];
-        id entity = [OCPProbe invokeTarget:entityAllocated
-                                  selector:@"initWithApplicationSceneHandle:"
-                                 arguments:@[ sceneHandle ]];
+        id entity = [OCPProbe instantiateClassNamed:@"SBDeviceApplicationSceneEntity"
+                                        initialiser:@"initWithApplicationSceneHandle:"
+                                          arguments:@[ sceneHandle ]];
         if (entity == nil) {
             if (error) *error = [[self class] errorForStage:OCPBridgeStageCreateSceneEntity
                                                      detail:@"không dựng được entity"];
@@ -176,11 +195,10 @@ static NSDictionary<NSString *, NSArray<NSString *> *> *OCPBridgeRequirements(vo
         }
 
         // Bước 6 — view controller giữ scene.
-        id viewControllerAllocated = [[OCPProbe classNamed:@"SBAppViewController"] alloc];
         id viewController =
-            [OCPProbe invokeTarget:viewControllerAllocated
-                          selector:@"initWithIdentifier:andApplicationSceneEntity:"
-                         arguments:@[ bundleIdentifier, entity ]];
+            [OCPProbe instantiateClassNamed:@"SBAppViewController"
+                                initialiser:@"initWithIdentifier:andApplicationSceneEntity:"
+                                  arguments:@[ bundleIdentifier, entity ]];
         if (viewController == nil) {
             if (error) *error = [[self class] errorForStage:OCPBridgeStageCreateViewController
                                                      detail:@"không dựng được SBAppViewController"];
