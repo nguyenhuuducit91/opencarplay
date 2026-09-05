@@ -98,6 +98,32 @@ bool ocp_bundle_id_is_valid(const char *identifier) {
     return segments >= 2;
 }
 
+bool ocp_bundle_id_is_system_critical(const char *identifier) {
+    if (identifier == NULL) return true;   // không biết thì coi là nguy hiểm
+
+    // Chỉ những process mà việc host chắc chắn phá hệ thống:
+    //  - springboard: chính process đang host, sẽ đệ quy
+    //  - backboardd/mediaserverd: hạ tầng hiển thị và âm thanh
+    //  - các process dựng chính giao diện CarPlay: chiếm nó thì mất dashboard
+    static const char *const critical[] = {
+        "com.apple.springboard",
+        "com.apple.backboardd",
+        "com.apple.mediaserverd",
+        "com.apple.CarPlayApp",
+        "com.apple.CarPlayTemplateUIHost",
+        "com.apple.CarPlaySettings",
+        "com.apple.InCallService",
+        "com.apple.MusicUIService",
+        "com.opencarplay.tweak",
+        NULL,
+    };
+
+    for (int i = 0; critical[i] != NULL; i++) {
+        if (strcmp(identifier, critical[i]) == 0) return true;
+    }
+    return false;
+}
+
 double ocp_aspect_fit_scale(double src_w, double src_h, double dst_w, double dst_h) {
     if (src_w <= 0.0 || src_h <= 0.0 || dst_w <= 0.0 || dst_h <= 0.0) return 0.0;
     double sx = dst_w / src_w;

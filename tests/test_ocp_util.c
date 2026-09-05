@@ -110,6 +110,30 @@ static void test_bundle_id(void) {
     CHECK(!ocp_bundle_id_is_valid(longID), "bundle id quá dài phải bị từ chối");
 }
 
+static void test_system_critical(void) {
+    printf("bundle id: danh sách chặn cứng\n");
+    const char *critical[] = {
+        "com.apple.springboard", "com.apple.CarPlayApp", "com.apple.CarPlayTemplateUIHost",
+        "com.apple.backboardd", "com.apple.mediaserverd", "com.opencarplay.tweak",
+    };
+    for (size_t i = 0; i < sizeof(critical)/sizeof(critical[0]); i++) {
+        CHECK(ocp_bundle_id_is_system_critical(critical[i]),
+              "\"%s\" phải bị chặn cứng", critical[i]);
+    }
+
+    const char *allowed[] = {
+        "com.google.Maps", "com.vietmap.VietMapLive", "com.google.ios.youtube",
+        "com.apple.Maps",          // app Apple thường thì không nằm trong danh sách chặn
+        "com.apple.springboard.x", // gần giống nhưng khác -> không chặn
+    };
+    for (size_t i = 0; i < sizeof(allowed)/sizeof(allowed[0]); i++) {
+        CHECK(!ocp_bundle_id_is_system_critical(allowed[i]),
+              "\"%s\" không được nằm trong danh sách chặn", allowed[i]);
+    }
+
+    CHECK(ocp_bundle_id_is_system_critical(NULL), "NULL phải bị coi là nguy hiểm");
+}
+
 static bool approx(double a, double b) { return fabs(a - b) < 1e-9; }
 
 static void test_aspect_fit(void) {
@@ -152,6 +176,7 @@ int main(void) {
     test_version_compare();
     test_version_range();
     test_bundle_id();
+    test_system_critical();
     test_aspect_fit();
     test_convert_point();
 

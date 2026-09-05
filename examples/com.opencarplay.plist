@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  OpenCarPlay — file cấu hình mẫu.
+
+  Chép tới:  /var/jb/var/mobile/Library/Preferences/com.opencarplay.plist
+  rồi respring (hoặc killall -9 SpringBoard).
+
+  Mọi khoá đều tuỳ chọn; thiếu khoá nào thì dùng mặc định (tắt, trừ ForceLandscape).
+-->
+<plist version="1.0">
+<dict>
+	<!-- Công tắc chính. NO nghĩa là tweak không thay đổi gì trong hệ thống. -->
+	<key>Enabled</key>
+	<false/>
+
+	<!-- Ứng dụng được phép dùng với CarPlay. Thay bằng bundle id trên máy bạn.
+	     Process hệ thống (springboard, CarPlayApp...) luôn bị chặn dù có liệt kê ở đây. -->
+	<key>AllowedApplications</key>
+	<array>
+		<string>com.google.Maps</string>
+		<string>com.vietmap.VietMapLive</string>
+	</array>
+
+	<key>AutoLaunch</key>
+	<false/>
+	<key>HideStatusBar</key>
+	<false/>
+	<key>FullScreen</key>
+	<false/>
+	<key>ForceLandscape</key>
+	<true/>
+
+	<!-- Ghi log đầy đủ. Mặc định chỉ ghi lỗi. -->
+	<key>DebugLogging</key>
+	<true/>
+
+	<!-- Công cụ nghiên cứu — xem README.
+	     RuntimeSurvey ghi khảo sát runtime vào /var/mobile/Media/OpenCarPlay/
+	     SignalDiscovery ghi lại tên notification liên quan CarPlay mà SpringBoard nhận -->
+	<key>RuntimeSurvey</key>
+	<true/>
+	<key>SignalDiscovery</key>
+	<true/>
+</dict>
+</plist>

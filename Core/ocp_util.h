@@ -38,6 +38,11 @@ bool ocp_bundle_id_is_valid(const char *identifier);
 
 #define OCP_BUNDLE_ID_MAX_LENGTH 255
 
+/// Bundle identifier này có phải process hệ thống mà việc đưa lên CarPlay chắc chắn
+/// gây hỏng (bootloop, đệ quy, hoặc mất chính giao diện CarPlay) không?
+/// Danh sách chặn cứng này LUÔN thắng danh sách cho phép của người dùng.
+bool ocp_bundle_id_is_system_critical(const char *identifier);
+
 /// Tỉ lệ co để đưa nội dung kích thước `src` vừa vào khung `dst`, giữ nguyên tỉ lệ khung hình.
 /// Trả về 0 nếu tham số không hợp lệ (<= 0).
 double ocp_aspect_fit_scale(double src_w, double src_h, double dst_w, double dst_h);

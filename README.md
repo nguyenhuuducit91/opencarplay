@@ -59,7 +59,9 @@ Sileo → Sources → thêm URL trên → cài **OpenCarPlay** → respring.
 3. Cài bằng Sileo (hoặc `dpkg -i`)
 4. Respring — chỉ cần khi thay đổi ảnh hưởng SpringBoard; thay đổi phía dashboard chỉ cần
    `killall -9 CarPlay`
-5. Bật OpenCarPlay trong Settings (Phase 12 — hiện tại sửa plist thủ công)
+5. Bật OpenCarPlay: chép [`examples/com.opencarplay.plist`](examples/com.opencarplay.plist) tới
+   `/var/jb/var/mobile/Library/Preferences/com.opencarplay.plist` rồi respring
+   (bảng cài đặt trong Settings sẽ có ở Phase 12)
 6. Cắm CarPlay
 7. Chọn app được phép
 
@@ -177,6 +179,24 @@ Kết quả khảo sát ghi vào `/var/mobile/Media/OpenCarPlay/`, lấy về m�
 
 Đây là cách kiểm chứng xem chuỗi private API mà carplay-cast dùng trên iOS 14 còn tồn tại
 trên iOS 18.6.2 hay không, thay vì đoán.
+
+### Cấu hình
+
+`/var/jb/var/mobile/Library/Preferences/com.opencarplay.plist` — xem
+[`examples/com.opencarplay.plist`](examples/com.opencarplay.plist).
+
+| Khoá | Mặc định | Ý nghĩa |
+|---|---|---|
+| `Enabled` | `NO` | Công tắc chính; `NO` thì tweak không đổi gì trong hệ thống |
+| `AllowedApplications` | `[]` | Bundle id được phép dùng với CarPlay |
+| `AutoLaunch` | `NO` | Tự mở app khi CarPlay kết nối |
+| `HideStatusBar` / `FullScreen` | `NO` | Trình bày trên màn hình xe |
+| `ForceLandscape` | `YES` | Ép app xoay ngang |
+| `DebugLogging` | `NO` | Ghi log đầy đủ thay vì chỉ lỗi |
+
+Mục nhập sai (chuỗi rác, process hệ thống) bị loại khi nạp và ghi log kèm lý do — danh sách
+chặn cứng luôn thắng danh sách cho phép, nên một dòng cấu hình sai không thể đưa SpringBoard
+hay chính CarPlay dashboard lên màn hình xe.
 
 ## Known limitations
 

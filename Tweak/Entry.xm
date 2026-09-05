@@ -1,6 +1,6 @@
 // OpenCarPlay — entry point.
 //
-// Phase 5: nhận diện process + khảo sát runtime. Vẫn chưa cài đặt hook nào —
+// Phase 6: thêm preferences + danh sách ứng dụng. Vẫn chưa cài đặt hook nào —
 // nguyên tắc 1 (ARCHITECTURE.md): mặc định không làm gì.
 //
 // Copyright (C) 2026 OpenCarPlay contributors — GPLv3.
@@ -14,6 +14,9 @@
 #import "OCPCarPlayDetector.h"
 #import "OCPProcessIdentity.h"
 #import "OCPRuntimeSurvey.h"
+#import "OCPPreferences.h"
+#import "OCPAppRegistry.h"
+#import "OCPTransport.h"
 
 %ctor {
     @autoreleasepool {
@@ -55,7 +58,19 @@
             // DebugLogging còn tắt (thiết bị chưa có file preferences).
             [OCPProbe logFullReportAtCategory:OCPLogError];
 
-            // 6. Khảo sát runtime (chỉ khi bật RuntimeSurvey) — công cụ nghiên cứu trả lời
+            // 6. Nạp cấu hình và danh sách ứng dụng. Hai lớp này chỉ đọc — chưa có gì
+            //    được kích hoạt dựa trên chúng cho tới Phase 7.
+            OCPPreferences *preferences = [OCPPreferences sharedPreferences];
+            OCPAppRegistry *registry = [OCPAppRegistry sharedRegistry];
+            OCPLogError_(@"cấu hình: %@ | %@ | ipc=%@",
+                         [preferences summary], [registry summary],
+                         [[OCPTransport sharedTransport] activeBackendName]);
+
+            if (!preferences.enabled) {
+                OCPLogError_(@"Enabled = NO — hệ thống hoạt động y như khi chưa cài tweak");
+            }
+
+            // 7. Khảo sát runtime (chỉ khi bật RuntimeSurvey) — công cụ nghiên cứu trả lời
             //    Q1-Q6 trong RESEARCH.md bằng dữ liệu từ chính iOS 18.6.2.
             [OCPRuntimeSurvey runIfEnabled];
 
@@ -77,7 +92,7 @@
                 }
             });
 
-            OCPLogC(OCPLogCore, @"phase 5: theo dõi kết nối CarPlay + khảo sát runtime (chưa hook gì)");
+            OCPLogC(OCPLogCore, @"phase 6: registry + detector sẵn sàng (chưa hook gì)");
         } @catch (NSException *exception) {
             OCPLogError_(@"ctor thất bại: %@ — %@", exception.name, exception.reason);
         }

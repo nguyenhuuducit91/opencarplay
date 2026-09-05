@@ -37,7 +37,7 @@
         { "class": "DepictionHeaderView", "title": "Lộ trình 14 phase" },
         {
           "class": "DepictionMarkdownView",
-          "markdown": "- ✓ Phase 1 — nghiên cứu kiến trúc CarPlay trên iOS 18.6\n- ✓ Phase 2 — project Theos rootless, gói .deb arm64e\n- ✓ Phase 3 — phát hiện môi trường, logging, probe runtime\n- ✓ Phase 4 — phát hiện kết nối/ngắt CarPlay\n- Phase 5 — nhận diện process CarPlay\n- Phase 6–7 — danh sách app được phép, đưa icon lên dashboard\n- Phase 8–9 — khởi chạy và hiển thị app trên màn hình xe\n- Phase 10–14 — chạm, âm thanh, cài đặt, đóng gói, kiểm thử"
+          "markdown": "- ✓ Phase 1 — nghiên cứu kiến trúc CarPlay trên iOS 18.6\n- ✓ Phase 2 — project Theos rootless, gói .deb arm64e\n- ✓ Phase 3 — phát hiện môi trường, logging, probe runtime\n- ✓ Phase 4 — phát hiện kết nối/ngắt CarPlay\n- ✓ Phase 5 — nhận diện process, khảo sát runtime\n- ✓ Phase 6 — cấu hình và danh sách app được phép\n- Phase 7 — đưa icon lên dashboard CarPlay\n- Phase 8–9 — khởi chạy và hiển thị app trên màn hình xe\n- Phase 10–14 — chạm, âm thanh, cài đặt, đóng gói, kiểm thử"
         }
       ]
     }
