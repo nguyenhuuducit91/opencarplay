@@ -22,6 +22,8 @@
 #import <fcntl.h>
 #import <os/log.h>
 #import <sys/syslog.h>
+#import <sys/stat.h>
+#import <time.h>
 #import <stdlib.h>
 #import <string.h>
 #import <unistd.h>
@@ -165,6 +167,28 @@ static void OCPBootstrap(BOOL isSpringBoard, BOOL isCarPlayApp, int stage) {
     }
 }
 
+/// Ghi dấu "constructor đã chạy" ra /var/mobile/Media/OpenCarPlay/, dùng open/write
+/// thuần C để không phụ thuộc bất cứ thứ gì có thể hỏng.
+static void OCPWriteLoadMarker(const char *processName, int killSwitch, int stage) {
+    mkdir("/var/mobile/Media/OpenCarPlay", 0755);
+
+    char path[256];
+    snprintf(path, sizeof(path), "/var/mobile/Media/OpenCarPlay/loaded-%s.txt", processName);
+
+    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0) return;
+
+    char line[256];
+    int length = snprintf(line, sizeof(line),
+                          "constructor đã chạy\nprocess=%s\nkillswitch=%d\nstage=%d\ntime=%ld\n",
+                          processName, killSwitch, stage, (long)time(NULL));
+    if (length > 0) {
+        ssize_t written = write(fd, line, (size_t)length);
+        (void)written;
+    }
+    close(fd);
+}
+
 #pragma mark - Constructor
 
 %ctor {
@@ -192,6 +216,11 @@ static void OCPBootstrap(BOOL isSpringBoard, BOOL isCarPlayApp, int stage) {
            processName, killSwitch, stage);
     syslog(LOG_ERR, "[OpenCarPlay] ctor: process=%s killswitch=%d stage=%d",
            processName, killSwitch, stage);
+
+    // Ghi dấu ra file trong vùng AFC. Log hệ thống chỉ xuất hiện đúng lúc process khởi
+    // động và trôi mất nếu không bắt kịp; file thì đọc được qua cáp bất cứ lúc nào.
+    // Đây là bằng chứng dứt khoát cho câu hỏi "dylib có được nạp không".
+    OCPWriteLoadMarker(processName, killSwitch, stage);
 
     if (killSwitch != 0) return;
     if (stage <= OCPStartupStageLoadOnly) return;
