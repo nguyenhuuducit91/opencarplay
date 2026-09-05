@@ -28,6 +28,12 @@ FOUNDATION_EXPORT NSString *OCPPreferencesPath(void);
 /// Đường dẫn tới kill switch. Nếu file tồn tại, tweak không được nạp bất cứ thứ gì.
 FOUNDATION_EXPORT NSString *OCPKillSwitchPath(void);
 
+/// Kill switch thứ hai, đặt trong vùng AFC (/var/mobile/Media) nên tạo được từ máy
+/// tính qua cáp USB mà không cần SSH hay vào được giao diện máy. Đây là đường cứu hộ
+/// khi máy treo ở màn hình khởi động:
+///     afcclient put /dev/null /OpenCarPlay/DISABLED
+FOUNDATION_EXPORT NSString *OCPMediaKillSwitchPath(void);
+
 /// Kill switch đang bật?
 FOUNDATION_EXPORT BOOL OCPKillSwitchEngaged(void);
 

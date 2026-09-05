@@ -131,6 +131,20 @@ hướng khác: [RESEARCH.md §5](RESEARCH.md).
 Với jailbreak semi-untethered (Dopamine), khởi động lại máy là đủ để thoát: máy boot vào trạng
 thái **chưa jailbreak**, tweak không được nạp, máy dùng bình thường.
 
+**Tắt tweak qua cáp USB, không cần vào máy** — dùng được cả khi máy đang treo:
+
+```bash
+afcclient mkdir /OpenCarPlay
+echo x > /tmp/DISABLED && afcclient put /tmp/DISABLED /OpenCarPlay/DISABLED
+```
+
+File này nằm trong `/var/mobile/Media/`, vùng mà AFC truy cập được qua USB. Tweak kiểm tra nó
+trong constructor bằng `access()` trước khi làm bất cứ việc gì. Xoá file để bật lại:
+
+```bash
+afcclient rm /OpenCarPlay/DISABLED
+```
+
 Sau đó, trước khi jailbreak lại:
 
 1. Bật **Safe Mode** trong Dopamine (jailbreak nhưng không nạp tweak)

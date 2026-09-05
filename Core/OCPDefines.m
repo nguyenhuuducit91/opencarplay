@@ -34,6 +34,12 @@ NSString *OCPKillSwitchPath(void) {
                                                     OCPPreferencesDomain]);
 }
 
+NSString *OCPMediaKillSwitchPath(void) {
+    return @"/var/mobile/Media/OpenCarPlay/DISABLED";
+}
+
 BOOL OCPKillSwitchEngaged(void) {
-    return [[NSFileManager defaultManager] fileExistsAtPath:OCPKillSwitchPath()];
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    return [fileManager fileExistsAtPath:OCPKillSwitchPath()] ||
+           [fileManager fileExistsAtPath:OCPMediaKillSwitchPath()];
 }
