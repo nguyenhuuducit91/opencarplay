@@ -47,7 +47,7 @@ Ngoài phạm vi này tweak **tự vô hiệu hoá** thay vì hook mù.
 **Qua Sileo (khuyến nghị)** — thêm repo:
 
 ```
-https://nguyenhuuducit91.github.io/OpenCarPlay/
+https://nguyenhuuducit91.github.io/opencarplay/
 ```
 
 Sileo → Sources → thêm URL trên → cài **OpenCarPlay** → respring.

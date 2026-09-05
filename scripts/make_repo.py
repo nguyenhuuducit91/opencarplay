@@ -156,7 +156,7 @@ def main() -> None:
     repo_url = os.environ.get("OCP_REPO_URL", "").rstrip("/")
     if not repo_url:
         print("Cảnh báo: chưa đặt OCP_REPO_URL — Depiction/Icon sẽ bị bỏ trống.")
-        print("  ví dụ: OCP_REPO_URL=https://<user>.github.io/OpenCarPlay python3 scripts/make_repo.py")
+        print("  ví dụ: OCP_REPO_URL=https://<user>.github.io/opencarplay python3 scripts/make_repo.py")
 
     print("Sinh APT repo trong docs/ ...")
     packages = build_packages(repo_url)
