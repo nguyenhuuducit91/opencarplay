@@ -4,21 +4,23 @@
 
 export THEOS_PACKAGE_SCHEME = rootless
 
-# CHỈ arm64 — KHÔNG arm64e.
+# arm64e, nhưng KHÔNG sinh lệnh pointer authentication.
 #
-# Toolchain Linux hiện có (clang 13 + ld64-609) tạo ra arm64e slice không tương thích
-# pointer authentication của iOS 18.6. Bằng chứng: crash report của Settings ghi rõ
-# "possible pointer authentication failure" ngay tại objc_msgSend, gọi từ
-# NSClassFromString trong constructor của bundle — tức lời gọi Objective-C ĐẦU TIÊN
-# đã chết. Cảnh báo "incompatible arm64e ABI compiler" của ld64 là có thật.
+# Ba ràng buộc phải thoả cùng lúc, tìm ra qua bốn lần thử trên máy thật:
 #
-# Process arm64e trên iOS nạp được dylib arm64: code arm64 thuần chạy bình thường trên
-# CPU arm64e, chỉ là không có PAC. Đó là đánh đổi đúng — mất tăng cường bảo mật của
-# PAC trong tweak, đổi lấy việc nó chạy được.
+#   1. Phải là arm64e. Process hệ thống trên A12+ là arm64e và dyld từ chối thư viện
+#      arm64: "incompatible architecture (have 'arm64', need 'arm64e')".
+#   2. Không được chứa lệnh PAC. Toolchain Linux (clang 13 + ld64-609) sinh ra lệnh
+#      xác thực con trỏ mà iOS 18.6 từ chối: lời gọi Objective-C đầu tiên đã chết với
+#      "possible pointer authentication failure".
+#   3. Phải dùng chained fixups. Đánh dấu binary arm64 thành arm64e mà giữ binding cổ
+#      điển thì dyld báo "bad bind opcode 0x09" — luật đọc bind của arm64e khác.
 #
-# Muốn quay lại arm64e thì cần toolchain sinh arm64e đúng ABI (Xcode trên macOS, hoặc
-# một bản ld64 mới hơn), không phải sửa gì trong mã nguồn.
-ARCHS = arm64
+# -fno-ptrauth-* thoả cả ba: binary vẫn là arm64e đúng định dạng (dyld xử lý bình
+# thường, chained fixups đúng loại), nhưng trình biên dịch không phát sinh lệnh PAC nào.
+#
+# ĐÁNH ĐỔI: thư viện không được PAC bảo vệ. Có Xcode trên macOS thì bỏ các cờ này.
+ARCHS = arm64e
 TARGET = iphone:clang:16.5:15.0
 
 INSTALL_TARGET_PROCESSES = SpringBoard CarPlay
@@ -31,6 +33,7 @@ OpenCarPlay_FILES  = $(wildcard Tweak/*.xm) $(wildcard Tweak/*.mm)
 OpenCarPlay_FILES += $(wildcard Tweak/*/*.xm) $(wildcard Tweak/*/*.mm)
 OpenCarPlay_FILES += $(wildcard Core/*.m) $(wildcard Core/*.mm) $(wildcard Core/*.c)
 OpenCarPlay_CFLAGS = -fobjc-arc -Wall -Wno-unused-variable -ICore -ITweak/CarPlayApp -ITweak/SpringBoard
+OpenCarPlay_CFLAGS += -fno-ptrauth-calls -fno-ptrauth-returns -fno-ptrauth-indirect-gotos -fno-ptrauth-auth-traps
 OpenCarPlay_FRAMEWORKS = UIKit
 # CydiaSubstrate được Theos liên kết qua @rpath khi dùng scheme rootless, nhưng nó
 # KHÔNG sinh LC_RPATH tương ứng. Hậu quả: dyld không resolve được phụ thuộc bắt buộc
@@ -64,14 +67,7 @@ after-stage::
 			/var/jb/Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate \
 			$$dylib || exit 1; \
 		python3 scripts/weaken_substrate.py $$dylib || exit 1; \
-		python3 scripts/mark_arm64e.py $$dylib || exit 1; \
 		ldid -S $$dylib || exit 1; \
-	done
-	@for bundle in `find $(THEOS_STAGING_DIR) -name '*.bundle' -type d`; do \
-		name=`basename $$bundle .bundle`; \
-		[ -f "$$bundle/$$name" ] || continue; \
-		python3 scripts/mark_arm64e.py "$$bundle/$$name" || exit 1; \
-		ldid -S "$$bundle/$$name" || exit 1; \
 	done
 	@find $(THEOS_STAGING_DIR) -type d -exec chmod 755 {} +
 	@find $(THEOS_STAGING_DIR) -type f -exec chmod 644 {} +

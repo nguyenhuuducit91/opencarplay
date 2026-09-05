@@ -89,28 +89,22 @@ make package FINALPACKAGE=1 && make repo
 `scripts/make_repo.py` sinh `Packages`, `Packages.{gz,bz2,xz}` và `Release`, chỉ dùng thư viện
 chuẩn của Python — không cần `dpkg-dev` hay `apt-utils`.
 
-### Vì sao build arm64 rồi đánh dấu thành arm64e
+### Vì sao arm64e nhưng tắt pointer authentication
 
-Trên A12 trở lên, process hệ thống là arm64e và dyld từ chối thư viện arm64:
+Ba ràng buộc phải thoả cùng lúc, tìm ra qua bốn lần thử trên máy thật:
 
-```
-mach-o file, but is an incompatible architecture (have 'arm64', need 'arm64e')
-```
+| # | Ràng buộc | Nếu vi phạm |
+|---|---|---|
+| 1 | Phải là **arm64e** | `incompatible architecture (have 'arm64', need 'arm64e')` |
+| 2 | Không chứa **lệnh PAC** | `EXC_BAD_ACCESS … possible pointer authentication failure` tại lời gọi Objective-C đầu tiên |
+| 3 | Phải dùng **chained fixups** | `bad bind opcode 0x09` — arm64e đọc bind theo luật khác |
 
-Nhưng toolchain Linux hiện có (clang 13 + ld64-609) sinh ra arm64e slice **không tương thích
-pointer authentication** của iOS 18.6 — lời gọi Objective-C đầu tiên đã chết:
+Toolchain Linux (clang 13 + ld64-609) sinh arm64e với lệnh PAC mà iOS 18.6 từ chối. Đánh dấu
+binary arm64 thành arm64e thì vi phạm ràng buộc 3.
 
-```
-EXC_BAD_ACCESS ... possible pointer authentication failure
-  libobjc     objc_msgSend
-  Foundation  NSClassFromString
-```
-
-Lối ra: biên dịch code **arm64 thuần** (không chứa lệnh PAC nào, con trỏ metadata không ký) rồi
-chỉ đổi `cpusubtype` trong header thành arm64e — `scripts/mark_arm64e.py`, chạy tự động trong
-`after-stage` rồi ký lại bằng `ldid`. CPU arm64e chạy lệnh arm64 bình thường; thay đổi duy nhất
-là dyld chấp nhận nạp. Slice giữ binding cổ điển (`LC_DYLD_INFO_ONLY`) chứ không phải chained
-fixups, nên dyld không đi vào nhánh ký con trỏ vốn là chỗ hỏng.
+Lời giải là `-fno-ptrauth-calls -fno-ptrauth-returns -fno-ptrauth-indirect-gotos
+-fno-ptrauth-auth-traps`: binary vẫn là arm64e đúng định dạng với chained fixups đúng loại, nhưng
+trình biên dịch không phát sinh lệnh PAC nào.
 
 Đánh đổi: thư viện không được PAC bảo vệ. Có Xcode trên macOS thì nên build arm64e thật và bỏ
 bước này.
