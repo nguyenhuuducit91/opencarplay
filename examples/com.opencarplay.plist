@@ -49,5 +49,14 @@
 	     đặt lại false rồi killall -9 CarPlay là mọi thứ trở lại nguyên bản. -->
 	<key>ExperimentalDiscovery</key>
 	<false/>
+
+	<!-- THỬ NGHIỆM, RỦI RO CAO NHẤT: gắn giao diện ứng dụng lên màn hình xe.
+	     Phần này chạm vào bộ máy scene của SpringBoard. Nếu chuỗi private API đã đổi
+	     trên iOS 18.6, tweak sẽ từ chối chạy và ghi log thay vì crash — nhưng hãy
+	     chuẩn bị sẵn đường vào máy (SSH hoặc Filza) trước khi bật.
+	     Có lưới tự tắt: nếu SpringBoard nạp lại 4 lần trong 45 giây, tweak tự tạo
+	     /var/jb/var/mobile/Library/Preferences/com.opencarplay.disabled và ngừng hoạt động. -->
+	<key>ExperimentalSceneHosting</key>
+	<false/>
 </dict>
 </plist>

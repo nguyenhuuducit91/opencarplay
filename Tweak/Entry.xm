@@ -1,9 +1,12 @@
 // OpenCarPlay — entry point.
 //
-// Phase 8: đưa ứng dụng lên dashboard và khởi chạy khi người dùng chạm icon.
-// nguyên tắc 1 (ARCHITECTURE.md): mặc định không làm gì.
-// Hook chỉ được cài khi: iOS trong phạm vi, đúng process, Enabled = YES,
-// ExperimentalDiscovery = YES, và probe xác nhận đủ class/selector.
+// Phase 9: đưa ứng dụng lên dashboard, khởi chạy, và gắn giao diện lên màn hình xe.
+//
+// Chuỗi điều kiện trước khi bất cứ thứ gì được kích hoạt — nguyên tắc 1 trong
+// ARCHITECTURE.md là mặc định không làm gì:
+//   kill switch tắt -> không trong vòng lặp crash -> iOS trong phạm vi ->
+//   đúng process -> Enabled = YES -> cổng thử nghiệm tương ứng bật ->
+//   probe xác nhận đủ class/selector.
 //
 // Copyright (C) 2026 OpenCarPlay contributors — GPLv3.
 
@@ -19,6 +22,7 @@
 #import "OCPPreferences.h"
 #import "OCPAppRegistry.h"
 #import "OCPLaunchCoordinator.h"
+#import "OCPCrashGuard.h"
 #import "OCPTransport.h"
 
 /// Định nghĩa trong Tweak/CarPlayApp/Hooks.xm.
@@ -27,6 +31,8 @@ extern void OCPInstallCarPlayHooks(void);
 %ctor {
     @autoreleasepool {
         @try {
+            OCPProcessRole role = [OCPProcessIdentity currentRole];
+
             // 1. Lưới an toàn: file kill switch chặn mọi thứ.
             if (OCPKillSwitchEngaged()) {
                 OCPLogError_(@"kill switch đang bật (%@) — không nạp gì trong %@",
@@ -36,20 +42,26 @@ extern void OCPInstallCarPlayHooks(void);
 
             [OCPLog reloadConfiguration];
 
-            // 2. Báo cáo môi trường. Luôn ghi ở mức Error để thấy được cả khi
+            // 2. Lưới an toàn chống bootloop. Từ Phase 9 tweak chạm vào bộ máy scene
+            //     của SpringBoard, nên phải có đường tự tắt khi phát hiện chết lặp.
+            if (role == OCPProcessRoleSpringBoard && ![OCPCrashGuard recordLoadAndCheckHealth]) {
+                OCPLogError_(@"OpenCarPlay tự vô hiệu hoá do phát hiện vòng lặp crash");
+                return;
+            }
+
+            // 3. Báo cáo môi trường. Luôn ghi ở mức Error để thấy được cả khi
             //    DebugLogging tắt — đây là dấu hiệu duy nhất cho biết tweak đã nạp.
             OCPLogError_(@"loaded — %@", [OCPCompatibility environmentSummary]);
 
-            // 3. Chặn sớm nếu hệ điều hành ngoài phạm vi đã nghiên cứu.
+            // 4. Chặn sớm nếu hệ điều hành ngoài phạm vi đã nghiên cứu.
             NSString *unsupported = [OCPCompatibility unsupportedReason];
             if (unsupported != nil) {
                 OCPLogError_(@"vô hiệu hoá: %@", unsupported);
                 return;
             }
 
-            // 4. Chỉ hoạt động trong hai process đã dự tính. Filter plist đã lọc rồi,
+            // 5. Chỉ hoạt động trong hai process đã dự tính. Filter plist đã lọc rồi,
             //    nhưng kiểm tra lại để không phụ thuộc vào cấu hình bên ngoài.
-            OCPProcessRole role = [OCPProcessIdentity currentRole];
             BOOL isSpringBoard = (role == OCPProcessRoleSpringBoard);
             BOOL isCarPlayApp  = (role == OCPProcessRoleCarPlayDashboard);
             if (!isSpringBoard && !isCarPlayApp) {
@@ -94,12 +106,13 @@ extern void OCPInstallCarPlayHooks(void);
                 @try {
                     [[OCPCarPlayDetector sharedDetector] start];
                     [[OCPLaunchCoordinator sharedCoordinator] start];
+                    [OCPCrashGuard markSessionHealthy];
                 } @catch (NSException *exception) {
                     OCPLogError_(@"không khởi động được detector/coordinator: %@", exception.reason);
                 }
             });
 
-            OCPLogC(OCPLogCore, @"phase 8: detector + launch coordinator sẵn sàng (SpringBoard không hook)");
+            OCPLogC(OCPLogCore, @"phase 9: detector + launch coordinator + scene bridge sẵn sàng");
         } @catch (NSException *exception) {
             OCPLogError_(@"ctor thất bại: %@ — %@", exception.name, exception.reason);
         }

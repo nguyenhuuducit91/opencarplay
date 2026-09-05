@@ -87,6 +87,24 @@ typedef NS_ENUM(NSInteger, OCPFeature) {
 /// Tạo instance của một private class bằng +alloc/-init. nil nếu class không tồn tại.
 + (nullable id)instantiateClassNamed:(NSString *)className;
 
+/// Gọi selector với số tham số bất kỳ, dùng chữ ký thật lấy từ runtime.
+///
+/// `arguments` nhận object thường, NSNull cho nil, và NSNumber cho tham số vô hướng
+/// (BOOL/int/long/double) — kiểu thật được suy ra từ chữ ký method, nên không cần
+/// bên gọi biết trước. Trả nil nếu selector không tồn tại, chữ ký không khớp số
+/// tham số, kiểu trả về không phải object, hoặc lời gọi ném exception.
+///
+/// Đây là con đường DUY NHẤT để gọi private API nhiều tham số trong dự án. Ép kiểu
+/// objc_msgSend sai chữ ký trên arm64e (có PAC) gây crash rất khó truy vết.
++ (nullable id)invokeTarget:(nullable id)target
+                   selector:(NSString *)selectorName
+                  arguments:(nullable NSArray *)arguments;
+
+/// Như trên nhưng cho class method.
++ (nullable id)invokeClassNamed:(NSString *)className
+                       selector:(NSString *)selectorName
+                      arguments:(nullable NSArray *)arguments;
+
 /// Ghi toàn bộ kết quả probe ra log (danh mục Compatibility).
 /// Đây là công cụ thu thập bằng chứng runtime chính của dự án — xem RESEARCH.md §7.
 + (void)logFullReport;

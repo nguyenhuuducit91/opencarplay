@@ -130,6 +130,9 @@ hướng khác: [RESEARCH.md §5](RESEARCH.md).
 
 **Bootloop / SpringBoard chết liên tục**
 
+Tweak tự phát hiện và tắt: nếu SpringBoard nạp lại 4 lần trong 45 giây, nó tự tạo file kill
+switch và ngừng hoạt động, máy trở lại bình thường ở lần respring kế tiếp. Nếu cần tắt thủ công:
+
 ```bash
 ssh mobile@<device>
 touch /var/jb/var/mobile/Library/Preferences/com.opencarplay.disabled
@@ -194,6 +197,7 @@ trên iOS 18.6.2 hay không, thay vì đoán.
 | `ForceLandscape` | `YES` | Ép app xoay ngang |
 | `DebugLogging` | `NO` | Ghi log đầy đủ thay vì chỉ lỗi |
 | `ExperimentalDiscovery` | `NO` | **Thử nghiệm** — đưa app trong danh sách lên dashboard CarPlay |
+| `ExperimentalSceneHosting` | `NO` | **Thử nghiệm, rủi ro cao** — gắn giao diện app lên màn hình xe |
 
 Mục nhập sai (chuỗi rác, process hệ thống) bị loại khi nạp và ghi log kèm lý do — danh sách
 chặn cứng luôn thắng danh sách cho phép, nên một dòng cấu hình sai không thể đưa SpringBoard
@@ -205,9 +209,12 @@ hay chính CarPlay dashboard lên màn hình xe.
   được kiểm chứng trên iOS 18.6**. iOS 18 có thêm lớp chính sách `CRCarPlayAppPolicy` mà dự án
   chưa giải mã (Q1–Q4 trong `RESEARCH.md`); nếu dashboard hỏi lớp đó thay vì đọc tuyên bố của
   ứng dụng thì cách hiện tại sẽ không có tác dụng. Tweak sẽ ghi log nói rõ điều đó thay vì im lặng.
-- Chạm icon trên dashboard sẽ mở ứng dụng **trên màn hình iPhone**, chưa phải trên màn hình xe.
-  Đây là bước trung gian có chủ ý: việc gắn giao diện ứng dụng lên màn hình xe (Phase 9) cần
-  toàn bộ chuỗi scene của SpringBoard, mà chuỗi đó chưa được kiểm chứng trên iOS 18.6 (Q5).
+- Gắn giao diện lên màn hình xe (`ExperimentalSceneHosting`) dựa trên chuỗi private API nội bộ
+  của SpringBoard mà **chưa ai kiểm chứng trên iOS 18.6** (Q5 trong `RESEARCH.md`). Nếu chuỗi đã
+  đổi, tweak từ chối chạy và ghi log tên bước hỏng, rồi lùi về mở ứng dụng trên màn hình iPhone.
+- Chạm và cuộn trên màn hình xe chưa được kiểm chứng — đó là Phase 10.
+- Ứng dụng chỉ sống trên một màn hình tại một thời điểm; khi đang ở màn hình xe, màn hình iPhone
+  chưa có ảnh thay thế (sẽ làm ở phase sau).
 - Một app chỉ chạy trên một màn hình tại một thời điểm; khi đang ở CarPlay, màn hình iPhone sẽ
   hiện placeholder
 - Ứng dụng video có DRM có thể tự chặn hiển thị trên màn hình ngoài — dự án **không** bypass DRM

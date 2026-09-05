@@ -12,6 +12,9 @@
 #import "OCPPreferences.h"
 #import "OCPProbe.h"
 #import "OCPTransport.h"
+#import "OCPCarPlayWindow.h"
+#import "OCPDisplayConfiguration.h"
+#import "OCPSceneBridge.h"
 
 /// SBSLaunchApplicationWithIdentifier(CFStringRef identifier, Boolean suspended) -> int
 /// Symbol công khai của SpringBoardServices; 0 nghĩa là thành công.
@@ -21,6 +24,9 @@ typedef int (*OCPLaunchFunction)(CFStringRef, Boolean);
 @property (nonatomic, copy, nullable) NSString *lastLaunchedBundleIdentifier;
 @property (nonatomic, copy) NSArray<NSString *> *availableStrategies;
 @property (nonatomic, assign) BOOL running;
+/// Chỉ tồn tại khi đang thực sự hiển thị ứng dụng trên màn hình xe.
+@property (nonatomic, strong, nullable) OCPSceneBridge *sceneBridge;
+@property (nonatomic, strong, nullable) OCPCarPlayWindow *carPlayWindow;
 @end
 
 @implementation OCPLaunchCoordinator
@@ -83,6 +89,22 @@ typedef int (*OCPLaunchFunction)(CFStringRef, Boolean);
                      : @"KHÔNG có đường khởi chạy nào khả dụng");
 
     __weak typeof(self) weakSelf = self;
+
+    // CarPlay rút dây khi đang hiển thị ứng dụng: phải dọn ngay, nếu không cửa sổ
+    // trỏ tới một màn hình không còn tồn tại.
+    [[NSNotificationCenter defaultCenter]
+        addObserverForName:OCPCarPlayDidDisconnectNotification
+                    object:nil
+                     queue:[NSOperationQueue mainQueue]
+                usingBlock:^(NSNotification *note) {
+        [weakSelf dismissHostedApplication];
+    }];
+
+    [[OCPTransport sharedTransport] observeMessage:OCPMessageDismissApplication
+                                           handler:^(NSDictionary *payload) {
+        [weakSelf dismissHostedApplication];
+    }];
+
     [[OCPTransport sharedTransport] observeMessage:OCPMessageLaunchApplication
                                            handler:^(NSDictionary *payload) {
         NSString *bundleIdentifier = payload[@"bundleIdentifier"];
@@ -135,7 +157,15 @@ typedef int (*OCPLaunchFunction)(CFStringRef, Boolean);
             return OCPLaunchResultNoStrategy;
         }
 
-        // 2. Thử đường 1.
+        // 2. Nếu được bật và đủ điều kiện, thử gắn ứng dụng lên MÀN HÌNH XE.
+        //    Thất bại ở đây không phải lỗi nghiêm trọng — ta lùi về mở trên màn hình
+        //    iPhone, tức hành vi của Phase 8.
+        if ([self attemptSceneHostingFor:bundleIdentifier]) {
+            self.lastLaunchedBundleIdentifier = bundleIdentifier;
+            return OCPLaunchResultSucceeded;
+        }
+
+        // 3. Thử đường 1.
         OCPLaunchFunction launch = [self springBoardServicesLaunch];
         if (launch != NULL) {
             int status = launch((__bridge CFStringRef)bundleIdentifier, false);
@@ -147,7 +177,7 @@ typedef int (*OCPLaunchFunction)(CFStringRef, Boolean);
             OCPLogC(OCPLogApplication, @"SBSLaunch... trả về %d, thử đường khác", status);
         }
 
-        // 3. Thử đường 2.
+        // 4. Thử đường 2.
         id service = [self systemService];
         if (service != nil) {
             id result = [OCPProbe invoke:service
@@ -165,6 +195,69 @@ typedef int (*OCPLaunchFunction)(CFStringRef, Boolean);
                      bundleIdentifier, exception.name, exception.reason);
         return OCPLaunchResultSystemRefused;
     }
+}
+
+#pragma mark - Gắn lên màn hình xe (thử nghiệm)
+
+/// Trả YES nếu ứng dụng đã hiện trên màn hình xe.
+- (BOOL)attemptSceneHostingFor:(NSString *)bundleIdentifier {
+    if (![[OCPPreferences sharedPreferences] experimentalSceneHosting]) return NO;
+
+    if (![OCPSceneBridge isSupported]) {
+        OCPLogError_(@"scene hosting bật nhưng thiếu tiền đề: %@ — lùi về mở trên iPhone",
+                     [[OCPSceneBridge missingRequirements] componentsJoinedByString:@", "]);
+        return NO;
+    }
+
+    OCPDisplayConfiguration *display =
+        [[OCPCarPlayDetector sharedDetector] displayConfiguration];
+    if (display == nil || !display.isValid) {
+        OCPLogError_(@"không có màn hình xe khả dụng — lùi về mở trên iPhone");
+        return NO;
+    }
+
+    // Chỉ hiển thị một ứng dụng tại một thời điểm.
+    [self dismissHostedApplication];
+
+    NSError *error = nil;
+    OCPCarPlayWindow *window = [OCPCarPlayWindow windowForDisplayConfiguration:display
+                                                                         error:&error];
+    if (window == nil) {
+        OCPLogError_(@"không tạo được cửa sổ màn hình xe: %@", error.localizedDescription);
+        return NO;
+    }
+
+    OCPSceneBridge *bridge = [[OCPSceneBridge alloc] init];
+    UIView *applicationView =
+        [bridge viewForApplicationWithBundleIdentifier:bundleIdentifier error:&error];
+    if (applicationView == nil) {
+        OCPLogError_(@"scene bridge thất bại: %@", error.localizedDescription);
+        [bridge teardown];
+        [window dismiss];
+        return NO;
+    }
+
+    if (![window presentContentView:applicationView]) {
+        [bridge teardown];
+        [window dismiss];
+        return NO;
+    }
+
+    self.sceneBridge = bridge;
+    self.carPlayWindow = window;
+    OCPLogError_(@"%@ đang hiển thị trên MÀN HÌNH XE", bundleIdentifier);
+    return YES;
+}
+
+/// Đóng ứng dụng đang hiển thị trên màn hình xe (nếu có).
+- (void)dismissHostedApplication {
+    if (self.sceneBridge == nil && self.carPlayWindow == nil) return;
+
+    [self.sceneBridge teardown];
+    [self.carPlayWindow dismiss];
+    self.sceneBridge = nil;
+    self.carPlayWindow = nil;
+    OCPLogC(OCPLogRendering, @"đã đóng ứng dụng trên màn hình xe");
 }
 
 /// Ghi lại trạng thái sau khi khởi chạy. Đây là dữ liệu để viết Phase 9: nó cho biết

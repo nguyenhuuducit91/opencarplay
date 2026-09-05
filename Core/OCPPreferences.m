@@ -96,6 +96,9 @@ NSString *const OCPPreferencesDidChangeNotification = @"OCPPreferencesDidChangeN
 - (BOOL)experimentalDiscovery {
     return [self boolForKey:@"ExperimentalDiscovery" defaultValue:NO];
 }
+- (BOOL)experimentalSceneHosting {
+    return [self boolForKey:@"ExperimentalSceneHosting" defaultValue:NO];
+}
 
 - (NSArray<NSString *> *)allowedApplications {
     id value = self.cache[@"AllowedApplications"];
@@ -157,6 +160,7 @@ NSString *const OCPPreferencesDidChangeNotification = @"OCPPreferencesDidChangeN
         @"RuntimeSurvey":       @(self.runtimeSurvey),
         @"SignalDiscovery":     @(self.signalDiscovery),
         @"ExperimentalDiscovery": @(self.experimentalDiscovery),
+        @"ExperimentalSceneHosting": @(self.experimentalSceneHosting),
         @"FileExists":          @(self.fileExists),
     };
 }

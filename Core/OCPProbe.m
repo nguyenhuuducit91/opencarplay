@@ -322,6 +322,123 @@
     }
 }
 
+/// Nhét một tham số vào NSInvocation theo đúng kiểu mà chữ ký khai báo.
++ (BOOL)setArgument:(id)argument atIndex:(NSUInteger)index onInvocation:(NSInvocation *)invocation {
+    const char *type = [invocation.methodSignature getArgumentTypeAtIndex:index];
+    if (type == NULL) return NO;
+
+    if ([argument isKindOfClass:[NSNull class]]) {
+        if (type[0] != '@') return NO;
+        id nilValue = nil;
+        [invocation setArgument:&nilValue atIndex:index];
+        return YES;
+    }
+
+    switch (type[0]) {
+        case '@': case '#': {
+            __unsafe_unretained id value = argument;
+            [invocation setArgument:&value atIndex:index];
+            return YES;
+        }
+        case 'B': case 'c': case 'C': {
+            if (![argument respondsToSelector:@selector(boolValue)]) return NO;
+            BOOL value = [argument boolValue];
+            [invocation setArgument:&value atIndex:index];
+            return YES;
+        }
+        case 'i': case 's': {
+            if (![argument respondsToSelector:@selector(intValue)]) return NO;
+            int value = [argument intValue];
+            [invocation setArgument:&value atIndex:index];
+            return YES;
+        }
+        case 'I': case 'S': {
+            if (![argument respondsToSelector:@selector(unsignedIntValue)]) return NO;
+            unsigned int value = [argument unsignedIntValue];
+            [invocation setArgument:&value atIndex:index];
+            return YES;
+        }
+        case 'q': {
+            if (![argument respondsToSelector:@selector(longLongValue)]) return NO;
+            long long value = [argument longLongValue];
+            [invocation setArgument:&value atIndex:index];
+            return YES;
+        }
+        case 'Q': {
+            if (![argument respondsToSelector:@selector(unsignedLongLongValue)]) return NO;
+            unsigned long long value = [argument unsignedLongLongValue];
+            [invocation setArgument:&value atIndex:index];
+            return YES;
+        }
+        case 'f': {
+            if (![argument respondsToSelector:@selector(floatValue)]) return NO;
+            float value = [argument floatValue];
+            [invocation setArgument:&value atIndex:index];
+            return YES;
+        }
+        case 'd': {
+            if (![argument respondsToSelector:@selector(doubleValue)]) return NO;
+            double value = [argument doubleValue];
+            [invocation setArgument:&value atIndex:index];
+            return YES;
+        }
+        default:
+            OCPLogC(OCPLogCompatibility, @"kiểu tham số '%c' chưa hỗ trợ", type[0]);
+            return NO;
+    }
+}
+
++ (nullable id)invokeTarget:(nullable id)target
+                   selector:(NSString *)selectorName
+                  arguments:(nullable NSArray *)arguments {
+    if (target == nil || selectorName.length == 0) return nil;
+
+    @try {
+        SEL selector = NSSelectorFromString(selectorName);
+        if (selector == NULL || ![target respondsToSelector:selector]) {
+            OCPLogC(OCPLogCompatibility, @"selector không tồn tại: %@ trên %@",
+                    selectorName, NSStringFromClass([target class]));
+            return nil;
+        }
+
+        NSInvocation *invocation = [self invocationFor:target selector:selector];
+        if (invocation == nil) return nil;
+
+        NSUInteger expected = invocation.methodSignature.numberOfArguments - 2;
+        if (expected != arguments.count) {
+            OCPLogC(OCPLogCompatibility, @"%@ cần %lu tham số, được đưa %lu — bỏ qua",
+                    selectorName, (unsigned long)expected, (unsigned long)arguments.count);
+            return nil;
+        }
+
+        for (NSUInteger i = 0; i < arguments.count; i++) {
+            if (![self setArgument:arguments[i] atIndex:i + 2 onInvocation:invocation]) {
+                OCPLogC(OCPLogCompatibility, @"%@: không đặt được tham số %lu",
+                        selectorName, (unsigned long)i);
+                return nil;
+            }
+        }
+
+        [invocation invoke];
+
+        if (![self signatureReturnsObject:invocation.methodSignature]) return nil;
+        __unsafe_unretained id result = nil;
+        [invocation getReturnValue:&result];
+        return result;
+    } @catch (NSException *exception) {
+        OCPLogError_(@"gọi %@ thất bại: %@ — %@", selectorName, exception.name, exception.reason);
+        return nil;
+    }
+}
+
++ (nullable id)invokeClassNamed:(NSString *)className
+                       selector:(NSString *)selectorName
+                      arguments:(nullable NSArray *)arguments {
+    Class cls = [self classNamed:className];
+    if (cls == Nil) return nil;
+    return [self invokeTarget:cls selector:selectorName arguments:arguments];
+}
+
 + (nullable id)instantiateClassNamed:(NSString *)className {
     Class cls = [self classNamed:className];
     if (cls == Nil) return nil;

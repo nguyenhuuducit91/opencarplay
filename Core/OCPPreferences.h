@@ -41,6 +41,11 @@ FOUNDATION_EXPORT NSString *const OCPPreferencesDidChangeNotification;
 /// thiết bị thật — người dùng phải bật tường minh.
 @property (nonatomic, readonly) BOOL experimentalDiscovery;
 
+/// Cổng cho phần gắn giao diện ứng dụng lên màn hình xe. Tách riêng khỏi
+/// experimentalDiscovery vì phần này chạm vào bộ máy scene của SpringBoard —
+/// sai ở đó nghĩa là SpringBoard chết lặp, không phải chỉ mất tính năng.
+@property (nonatomic, readonly) BOOL experimentalSceneHosting;
+
 /// File preferences có tồn tại không (phân biệt "chưa cấu hình" với "cấu hình tắt").
 @property (nonatomic, readonly) BOOL fileExists;
 
