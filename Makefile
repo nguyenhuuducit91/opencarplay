@@ -84,21 +84,9 @@ include $(THEOS_MAKE_PATH)/tweak.mk
 #
 # Đổi sang đường dẫn tuyệt đối của jailbreak rootless rồi ký lại, vì sửa Mach-O làm
 # hỏng chữ ký cũ.
-# Cài dylib vào CẢ HAI thư mục nạp tweak.
-#
-# Theos scheme rootless đặt tweak vào Library/MobileSubstrate/DynamicLibraries, đường
-# dẫn có từ thời Cydia Substrate. ElleKit — thứ Dopamine thực sự dùng — đọc từ
-# usr/lib/TweakInject. Nếu nó không đọc đường dẫn cũ thì dylib không bao giờ được nạp:
-# không log, không crash, không dấu vết nào, đúng như quan sát được.
-#
-# Đặt ở cả hai chỗ là cách rẻ nhất để loại trừ khả năng này.
-after-stage::
-	@mkdir -p $(THEOS_STAGING_DIR)/usr/lib/TweakInject
-	@cp $(THEOS_STAGING_DIR)/Library/MobileSubstrate/DynamicLibraries/OpenCarPlay.dylib \
-		$(THEOS_STAGING_DIR)/usr/lib/TweakInject/OpenCarPlay.dylib
-	@cp $(THEOS_STAGING_DIR)/Library/MobileSubstrate/DynamicLibraries/OpenCarPlay.plist \
-		$(THEOS_STAGING_DIR)/usr/lib/TweakInject/OpenCarPlay.plist
-	@echo "  cài thêm vào usr/lib/TweakInject (đường dẫn của ElleKit)"
+# GHI CHÚ: đã thử cài thêm vào usr/lib/TweakInject vì tưởng ElleKit đọc đường dẫn đó.
+# Sai: dpkg báo thư mục không tồn tại trên máy, tức ElleKit ở đây dùng đúng
+# Library/MobileSubstrate/DynamicLibraries mà Theos vẫn cài.
 
 after-stage::
 	@for dylib in `find $(THEOS_STAGING_DIR) -name '*.dylib'`; do \
