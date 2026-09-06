@@ -181,7 +181,10 @@ class MachO:
         for i in range(nsyms):
             base = self.offset + symoff + i * 16
             n_strx, n_type = struct.unpack_from("<IB", self.data, base)
-            if (n_type & 0x0E) != 0x00:      # chỉ N_UNDF
+            # Chỉ symbol NGOÀI thực sự chưa định nghĩa: N_UNDF | N_EXT.
+            # ld64 còn sinh bản sao N_PEXT|N_UNDF cho symbol của chính binary — tính
+            # cả chúng thì mọi ivar của chính ta cũng bị báo là thiếu.
+            if n_type != 0x01:
                 continue
             end = strings.find(b"\x00", n_strx)
             result.add(strings[n_strx:end if end >= 0 else None].decode(errors="replace"))

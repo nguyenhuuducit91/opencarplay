@@ -9,6 +9,7 @@
 // Copyright (C) 2026 OpenCarPlay contributors — GPLv3.
 
 #import "OCPApplicationListController.h"
+#import "OCPPrefsTrace.h"
 
 #import <UIKit/UIKit.h>
 #import <objc/message.h>
@@ -16,6 +17,9 @@
 @interface OCPApplicationListController ()
 @property (nonatomic, copy) NSArray<NSDictionary<NSString *, NSString *> *> *applications;
 @property (nonatomic, strong) NSMutableSet<NSString *> *selected;
+/// Bản của riêng ta — không chạm vào ivar _specifiers của lớp cha.
+/// Xem ghi chú đầu OCPRootListController.m.
+@property (nonatomic, strong) NSMutableArray *ocpSpecifiers;
 @end
 
 @implementation OCPApplicationListController
@@ -83,11 +87,20 @@ static id OCPSend(id target, NSString *selectorName) {
 }
 
 - (NSMutableArray *)specifiers {
-    if (_specifiers == nil) {
-        [self loadApplications];
-        [self loadSelection];
-
+    if (self.ocpSpecifiers == nil) {
+        OCPPrefsTrace("app list: bắt đầu", NULL);
         NSMutableArray *specifiers = [NSMutableArray array];
+        @try {
+            [self loadApplications];
+            [self loadSelection];
+            OCPPrefsTrace("app list: đã liệt kê",
+                          [[NSString stringWithFormat:@"%lu ứng dụng",
+                            (unsigned long)self.applications.count] UTF8String]);
+        } @catch (NSException *exception) {
+            OCPPrefsTrace("app list: NÉM EXCEPTION", exception.reason.UTF8String);
+            self.applications = @[];
+            self.selected = [NSMutableSet set];
+        }
 
         PSSpecifier *group = [PSSpecifier emptyGroupSpecifier];
         [group setProperty:@"Chọn ứng dụng được phép hiện trên màn hình xe. Danh sách "
@@ -117,7 +130,7 @@ static id OCPSend(id target, NSString *selectorName) {
                                                detail:Nil
                                                  cell:PSSwitchCell
                                                  edit:Nil];
-            [specifier setIdentifier:application[@"id"]];
+            [specifier setProperty:application[@"id"] forKey:@"id"];
             [specifier setProperty:application[@"id"] forKey:@"bundleIdentifier"];
             // Icon do Settings nạp lười — không tự đọc file icon của ứng dụng.
             [specifier setProperty:@YES forKey:@"useLazyIcons"];
@@ -125,9 +138,18 @@ static id OCPSend(id target, NSString *selectorName) {
             [specifiers addObject:specifier];
         }
 
-        _specifiers = specifiers;
+        self.ocpSpecifiers = specifiers;
+        if ([self respondsToSelector:@selector(setSpecifiers:)]) {
+            @try {
+                [self setSpecifiers:specifiers];
+            } @catch (NSException *exception) {
+                OCPPrefsTrace("app list: setSpecifiers: ném exception",
+                              exception.reason.UTF8String);
+            }
+        }
+        OCPPrefsTrace("app list: hoàn tất", NULL);
     }
-    return _specifiers;
+    return self.ocpSpecifiers;
 }
 
 #pragma mark - Đọc / ghi

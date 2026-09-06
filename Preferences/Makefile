@@ -17,7 +17,8 @@ include $(THEOS)/makefiles/common.mk
 
 BUNDLE_NAME = OpenCarPlayPrefs
 
-OpenCarPlayPrefs_FILES = OCPPrefsCommon.m OCPRootListController.m OCPApplicationListController.m
+OpenCarPlayPrefs_FILES = OCPPrefsTrace.c OCPPrefsCommon.m OCPRootListController.m \
+                         OCPApplicationListController.m
 OpenCarPlayPrefs_INSTALL_PATH = /Library/PreferenceBundles
 OpenCarPlayPrefs_FRAMEWORKS = UIKit
 OpenCarPlayPrefs_PRIVATE_FRAMEWORKS = Preferences

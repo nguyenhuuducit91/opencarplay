@@ -1,6 +1,6 @@
 Package: com.opencarplay.tweak
 Name: OpenCarPlay
-Version: 0.33.0
+Version: 0.34.0
 Architecture: iphoneos-arm64
 Depends: firmware (>= 18.0), ellekit, preferenceloader
 Section: Tweaks
