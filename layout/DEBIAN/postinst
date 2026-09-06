@@ -167,6 +167,13 @@ chown mobile "$REPORT" 2>/dev/null || true
 # dung nhat co the co: cung thu muc, cung injector, cung thiet bi.
 #
 # Chi chep phan doc duoc; khong sua gi cua goi khac.
+cp "$JBROOT/usr/lib/TweakInject/OpenCarPlay.dylib" \
+   "$REPORT_DIR/installed-OpenCarPlay.dylib" 2>/dev/null \
+   && chmod 644 "$REPORT_DIR/installed-OpenCarPlay.dylib" 2>/dev/null
+cp "$JBROOT/usr/lib/TweakInject/OpenCarPlay.plist" \
+   "$REPORT_DIR/installed-OpenCarPlay.plist" 2>/dev/null \
+   && chmod 644 "$REPORT_DIR/installed-OpenCarPlay.plist" 2>/dev/null
+
 for SRC in "$JBROOT/Library/Frameworks/Cephei.framework/Cephei" \
            "$JBROOT/usr/lib/TweakInject/PreferenceLoader.dylib"; do
     [ -f "$SRC" ] || continue
@@ -179,7 +186,7 @@ for SRC in "$JBROOT/usr/lib/TweakInject/CepheiSpringBoard.plist" \
     cp "$SRC" "$REPORT_DIR/ref-$(basename "$SRC")" 2>/dev/null
     chmod 644 "$REPORT_DIR/ref-$(basename "$SRC")" 2>/dev/null
 done
-chown mobile "$REPORT_DIR"/ref-* 2>/dev/null || true
+chown mobile "$REPORT_DIR"/ref-* "$REPORT_DIR"/installed-* 2>/dev/null || true
 
 echo "OpenCarPlay: da ghi bao cao cai dat vao $REPORT"
 echo "  Doc tu may tinh: afcclient get /OpenCarPlay/install-report.txt report.txt"
