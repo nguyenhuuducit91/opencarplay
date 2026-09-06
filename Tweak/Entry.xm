@@ -241,26 +241,50 @@ static void OCPBootstrap(BOOL isSpringBoard, BOOL isCarPlayApp, int stage) {
     }
 }
 
-/// Ghi dấu "constructor đã chạy" ra /var/mobile/Media/OpenCarPlay/, dùng open/write
-/// thuần C để không phụ thuộc bất cứ thứ gì có thể hỏng.
+/// Ghi dấu "constructor đã chạy", bằng open/write thuần C.
+///
+/// Ghi ra NHIỀU vị trí, vì mỗi vị trí có một điểm mù:
+///
+///   /var/mobile/Media/...   đọc được qua cáp USB mà không cần SSH — nhưng đây là vùng
+///                           AFC, và sandbox của SpringBoard có thể từ chối ghi vào đó.
+///                           Bản 0.30-0.39 chỉ ghi vào đây, nên "không có dấu" vừa có
+///                           thể nghĩa là dylib không nạp, vừa có thể là nạp rồi mà
+///                           không ghi được — hai kết luận trái ngược, không phân biệt
+///                           nổi. Đó là lý do phải sửa chỗ này.
+///   Library/Preferences/... SpringBoard chạy dưới quyền mobile và thư mục này thuộc
+///                           mobile; đọc bằng Filza hoặc SSH.
+///   /var/tmp/...            đường lùi cuối, gần như luôn ghi được.
+///
+/// syslog() trong constructor mới là bằng chứng đáng tin nhất vì nó không cần quyền ghi
+/// file nào; mấy file này chỉ để đọc lại sau, khi không bắt kịp lúc log chạy qua.
 static void OCPWriteLoadMarker(const char *processName, int killSwitch, int stage) {
-    mkdir("/var/mobile/Media/OpenCarPlay", 0755);
-
-    char path[256];
-    snprintf(path, sizeof(path), "/var/mobile/Media/OpenCarPlay/loaded-%s.txt", processName);
-
-    int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if (fd < 0) return;
-
     char line[256];
     int length = snprintf(line, sizeof(line),
-                          "constructor đã chạy\nprocess=%s\nkillswitch=%d\nstage=%d\ntime=%ld\n",
+                          "constructor da chay\nprocess=%s\nkillswitch=%d\nstage=%d\ntime=%ld\n",
                           processName, killSwitch, stage, (long)time(NULL));
-    if (length > 0) {
+    if (length <= 0) return;
+
+    mkdir("/var/mobile/Media/OpenCarPlay", 0755);
+
+    static const char *const prefixes[] = {
+        "/var/mobile/Media/OpenCarPlay/loaded-",
+        "/var/mobile/Library/Preferences/com.opencarplay.loaded-",
+        "/var/tmp/com.opencarplay.loaded-",
+        NULL,
+    };
+
+    for (int i = 0; prefixes[i] != NULL; i++) {
+        char path[256];
+        if (snprintf(path, sizeof(path), "%s%s.txt", prefixes[i], processName)
+                >= (int)sizeof(path)) {
+            continue;
+        }
+        int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (fd < 0) continue;
         ssize_t written = write(fd, line, (size_t)length);
         (void)written;
+        close(fd);
     }
-    close(fd);
 }
 
 #pragma mark - Constructor
