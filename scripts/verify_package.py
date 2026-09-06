@@ -346,6 +346,13 @@ def check_tweak_layout(root: Path) -> list:
             problems.append(f"{dylib.name}: thiếu file filter cùng tên — ElleKit không "
                             f"biết nạp vào process nào")
             continue
+        if filter_plist.read_bytes()[:8] != b"bplist00":
+            problems.append(
+                f"{filter_plist.name}: còn ở dạng XML. Mọi tweak khác trên thiết bị dùng "
+                f"plist nhị phân; Theos định tự chuyển nhưng bỏ qua trên máy build Linux "
+                f"(dòng Notice 'plist files were not optimized'). Chạy "
+                f"scripts/binary_plist.py.")
+
         data, error = read_plist(filter_plist)
         if data is None:
             problems.append(f"{filter_plist.name}: {error}")

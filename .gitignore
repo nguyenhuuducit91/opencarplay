@@ -39,3 +39,6 @@ syslog*.txt
 # Python bytecode của scripts/
 __pycache__/
 *.pyc
+
+ocp-inject/
+report.txt

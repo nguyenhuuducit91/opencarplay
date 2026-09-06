@@ -69,7 +69,10 @@ OpenCarPlay_FRAMEWORKS = UIKit
 # Objective-C đăng ký trùng, hook cài chồng.
 OpenCarPlay_INSTALL_PATH = /usr/lib/TweakInject
 
-OpenCarPlay_LDFLAGS = -Wl,-segalign,4000
+# install_name mặc định là @rpath/OpenCarPlay.dylib. Mọi tweak khác trên thiết bị dùng
+# đường dẫn tuyệt đối; đặt cho khớp để bớt một biến số khác biệt.
+OpenCarPlay_LDFLAGS = -install_name /var/jb/usr/lib/TweakInject/OpenCarPlay.dylib
+OpenCarPlay_LDFLAGS += -Wl,-segalign,4000
 OpenCarPlay_LDFLAGS += -Wl,-rpath,/var/jb/Library/Frameworks
 OpenCarPlay_LDFLAGS += -Wl,-rpath,/Library/Frameworks
 
@@ -133,6 +136,7 @@ after-stage::
 		$(LDID) -S $$dylib || exit 1; \
 	done
 	@python3 scripts/stamp_version.py $(THEOS_STAGING_DIR)
+	@python3 scripts/binary_plist.py $(THEOS_STAGING_DIR)/usr/lib/TweakInject/*.plist
 	@find $(THEOS_STAGING_DIR) -type d -exec chmod 755 {} +
 	@find $(THEOS_STAGING_DIR) -type f -exec chmod 644 {} +
 	@find $(THEOS_STAGING_DIR) -name '*.dylib' -exec chmod 755 {} +
