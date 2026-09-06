@@ -47,6 +47,7 @@ _PAC_EXACT = {
 _PAC_MASKED = {
     0xD71F0800: "braa", 0xD73F0800: "blraa",
     0xD71F0C00: "brab", 0xD73F0C00: "blrab",
+    0xDAC10800: "pac(reg)", 0xDAC11800: "aut(reg)",
 }
 
 
@@ -169,6 +170,41 @@ class MachO:
             if name.startswith("_OBJC_CLASS_$_"):
                 result.add(name[len("_OBJC_CLASS_$_"):])
         return result
+
+    def undefined_symbols(self) -> set:
+        """Tên các symbol binary này cần từ nơi khác."""
+        if not self.symtab:
+            return set()
+        symoff, nsyms, stroff, strsize = self.symtab
+        strings = self.data[self.offset + stroff:self.offset + stroff + strsize]
+        result = set()
+        for i in range(nsyms):
+            base = self.offset + symoff + i * 16
+            n_strx, n_type = struct.unpack_from("<IB", self.data, base)
+            if (n_type & 0x0E) != 0x00:      # chỉ N_UNDF
+                continue
+            end = strings.find(b"\x00", n_strx)
+            result.add(strings[n_strx:end if end >= 0 else None].decode(errors="replace"))
+        return result
+
+    def uses_blocks(self) -> bool:
+        """Binary có tạo block Objective-C không.
+
+        Quan trọng vì trên arm64e, trường `invoke` của block được khai báo
+        __ptrauth(ptrauth_key_function_pointer, true, 0xc0bb): bên GỌI xác thực nó.
+        Nếu binary này không ký con trỏ (xem signs_pointers), block sẽ làm process
+        gọi nó chết ở một địa chỉ còn nguyên bits chữ ký.
+        """
+        undefined = self.undefined_symbols()
+        return bool(undefined & {"__NSConcreteStackBlock", "__NSConcreteGlobalBlock",
+                                 "_NSConcreteStackBlock", "_NSConcreteGlobalBlock"})
+
+    def signs_pointers(self) -> bool:
+        """Mã của binary này có sinh lệnh ký con trỏ không (pac*/aut* trên thanh ghi)."""
+        found = self.pac_instructions()
+        return any(name.startswith(("pac", "aut")) and name not in ("pacibsp", "autibsp",
+                                                                    "paciasp", "autiasp")
+                   for name in found)
 
     def objc_class_count(self) -> int:
         entry = self.sections.get("__DATA_CONST,__objc_classlist") \

@@ -25,22 +25,37 @@ NSString *OCPPrefsPath(void) {
             OCPPrefsDomain];
 }
 
+/// KHÔNG dùng dispatch_once ở đây, và không dùng block ở bất cứ đâu trong bundle này.
+///
+/// Toolchain Linux (clang 13) không sinh lệnh ký con trỏ: đo trên binary đã dựng,
+/// section __text có ĐÚNG 0 lệnh pac*. Nhưng trên arm64e, trường `invoke` của một block
+/// được khai báo __ptrauth(ptrauth_key_function_pointer, true, 0xc0bb), và libdispatch
+/// XÁC THỰC nó khi gọi. Block chưa ký + bên gọi xác thực = nhảy vào địa chỉ còn nguyên
+/// bits chữ ký, tức EXC_BAD_ACCESS ở một địa chỉ dạng 0x0020000...
+///
+/// Đây là lý do Settings crash ngay khi mở bảng cài đặt: dispatch_once ở đây là block
+/// đầu tiên được gọi trên đường đó. Bỏ cờ -fno-ptrauth-* KHÔNG chữa được — clang 13 khi
+/// đó chỉ thêm ký địa chỉ trả về (pacibsp), vẫn không ký con trỏ hàm hay block.
+///
+/// Khởi tạo lười thủ công thay thế. An toàn vì bảng cài đặt chỉ chạy trên main thread.
 NSBundle *OCPPrefsBundle(void) {
     static NSBundle *bundle = nil;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{
-        bundle = [NSBundle bundleForClass:NSClassFromString(@"OCPRootListController")];
-        if (bundle == nil || [bundle.bundlePath rangeOfString:@"OpenCarPlayPrefs"].location
-                == NSNotFound) {
-            for (NSString *path in @[ @"/var/jb/Library/PreferenceBundles/OpenCarPlayPrefs.bundle",
-                                      @"/Library/PreferenceBundles/OpenCarPlayPrefs.bundle" ]) {
-                if ([[NSFileManager defaultManager] fileExistsAtPath:path]) {
-                    bundle = [NSBundle bundleWithPath:path];
-                    break;
-                }
-            }
+    if (bundle != nil) return bundle;
+
+    NSBundle *candidate = [NSBundle bundleForClass:NSClassFromString(@"OCPRootListController")];
+    if (candidate != nil &&
+        [candidate.bundlePath rangeOfString:@"OpenCarPlayPrefs"].location != NSNotFound) {
+        bundle = candidate;
+        return bundle;
+    }
+
+    for (NSString *path in @[ @"/var/jb/Library/PreferenceBundles/OpenCarPlayPrefs.bundle",
+                              @"/Library/PreferenceBundles/OpenCarPlayPrefs.bundle" ]) {
+        if ([[NSFileManager defaultManager] fileExistsAtPath:path]) {
+            bundle = [NSBundle bundleWithPath:path];
+            break;
         }
-    });
+    }
     return bundle;
 }
 

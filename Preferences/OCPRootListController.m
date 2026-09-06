@@ -175,6 +175,24 @@ static NSString *OCPLoadMarkerPath(NSString *processName) {
     if ([key isEqualToString:@"Enabled"]) [self reloadSpecifiers];
 }
 
+#pragma mark - Hành động
+
+// Hộp thoại xác nhận của hai nút dưới đây do Preferences.framework dựng, khai báo bằng
+// khoá "confirmation" trong Root.plist. KHÔNG tự dựng UIAlertController với handler:^ —
+// đó là block, và bundle này không được phép tạo block nào (xem OCPPrefsCommon.m).
+
+- (void)resetSettings:(PSSpecifier *)specifier {
+    OCPPrefsReset();
+    [self reloadSpecifiers];
+}
+
+- (void)respring:(PSSpecifier *)specifier {
+    // Settings không được phép giết SpringBoard; nó chỉ gửi tín hiệu, phần trong
+    // SpringBoard tự khởi động lại. Tweak chưa nạp thì không có gì xảy ra — đó cũng
+    // chính là câu trả lời trung thực cho người dùng.
+    notify_post("com.opencarplay.respring");
+}
+
 - (void)showAlertWithTitle:(NSString *)title message:(NSString *)message {
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:title
                                                                   message:message
@@ -182,50 +200,6 @@ static NSString *OCPLoadMarkerPath(NSString *processName) {
     [alert addAction:[UIAlertAction actionWithTitle:@"OK"
                                               style:UIAlertActionStyleDefault
                                             handler:nil]];
-    [self presentViewController:alert animated:YES completion:nil];
-}
-
-#pragma mark - Hành động
-
-- (void)resetSettings:(PSSpecifier *)specifier {
-    UIAlertController *alert = [UIAlertController
-        alertControllerWithTitle:@"Đặt lại cài đặt?"
-                         message:@"Mọi tuỳ chọn và danh sách ứng dụng sẽ trở về mặc định "
-                                 @"(tất cả đều tắt). Không thể hoàn tác."
-                  preferredStyle:UIAlertControllerStyleAlert];
-
-    [alert addAction:[UIAlertAction actionWithTitle:@"Huỷ"
-                                              style:UIAlertActionStyleCancel
-                                            handler:nil]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Đặt lại"
-                                              style:UIAlertActionStyleDestructive
-                                            handler:^(UIAlertAction *action) {
-        OCPPrefsReset();
-        [self reloadSpecifiers];
-    }]];
-
-    [self presentViewController:alert animated:YES completion:nil];
-}
-
-- (void)respring:(PSSpecifier *)specifier {
-    UIAlertController *alert = [UIAlertController
-        alertControllerWithTitle:@"Respring?"
-                         message:@"SpringBoard sẽ khởi động lại để nạp lại tweak. "
-                                 @"Màn hình khoá sẽ hiện ra trong vài giây."
-                  preferredStyle:UIAlertControllerStyleAlert];
-
-    [alert addAction:[UIAlertAction actionWithTitle:@"Huỷ"
-                                              style:UIAlertActionStyleCancel
-                                            handler:nil]];
-    [alert addAction:[UIAlertAction actionWithTitle:@"Respring"
-                                              style:UIAlertActionStyleDestructive
-                                            handler:^(UIAlertAction *action) {
-        // Settings không được phép giết SpringBoard; nó chỉ gửi tín hiệu, phần trong
-        // SpringBoard tự khởi động lại. Tweak chưa nạp thì không có gì xảy ra — đó
-        // cũng chính là câu trả lời trung thực cho người dùng.
-        notify_post("com.opencarplay.respring");
-    }]];
-
     [self presentViewController:alert animated:YES completion:nil];
 }
 

@@ -56,10 +56,13 @@ static id OCPSend(id target, NSString *selectorName) {
         [result addObject:@{ @"id": identifier, @"name": name }];
     }
 
-    [result sortUsingComparator:^NSComparisonResult(NSDictionary *a, NSDictionary *b) {
-        return [a[@"name"] localizedCaseInsensitiveCompare:b[@"name"]];
-    }];
-    self.applications = result;
+    // NSSortDescriptor chứ không phải sortUsingComparator: — bundle này không được phép
+    // tạo block nào. Xem ghi chú ở OCPPrefsBundle() trong OCPPrefsCommon.m.
+    NSSortDescriptor *byName =
+        [NSSortDescriptor sortDescriptorWithKey:@"name"
+                                      ascending:YES
+                                       selector:@selector(localizedCaseInsensitiveCompare:)];
+    self.applications = [result sortedArrayUsingDescriptors:@[ byName ]];
 }
 
 - (void)loadSelection {

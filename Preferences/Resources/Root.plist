@@ -226,6 +226,19 @@ Cứu hộ qua cáp USB khi không vào được giao diện:
 			<string>respring:</string>
 			<key>cell</key>
 			<string>PSButtonCell</string>
+			<key>confirmation</key>
+			<dict>
+				<key>cancelTitle</key>
+				<string>Huỷ</string>
+				<key>isDestructive</key>
+				<true/>
+				<key>okTitle</key>
+				<string>Respring</string>
+				<key>prompt</key>
+				<string>SpringBoard sẽ khởi động lại. Màn hình khoá sẽ hiện ra trong vài giây. Nếu tweak chưa nạp thì không có gì xảy ra.</string>
+				<key>title</key>
+				<string>Respring?</string>
+			</dict>
 			<key>label</key>
 			<string>Respring</string>
 		</dict>
@@ -234,6 +247,19 @@ Cứu hộ qua cáp USB khi không vào được giao diện:
 			<string>resetSettings:</string>
 			<key>cell</key>
 			<string>PSButtonCell</string>
+			<key>confirmation</key>
+			<dict>
+				<key>cancelTitle</key>
+				<string>Huỷ</string>
+				<key>isDestructive</key>
+				<true/>
+				<key>okTitle</key>
+				<string>Đặt lại</string>
+				<key>prompt</key>
+				<string>Mọi tuỳ chọn và danh sách ứng dụng sẽ trở về mặc định (tất cả đều tắt). Không thể hoàn tác.</string>
+				<key>title</key>
+				<string>Đặt lại cài đặt?</string>
+			</dict>
 			<key>isDestructive</key>
 			<true/>
 			<key>label</key>

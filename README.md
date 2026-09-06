@@ -336,6 +336,35 @@ Chạy theo thứ tự; mỗi mục hỏng đều chỉ tới một phần khác
 [ ] crash guard tự tạo file đó khi SpringBoard chết lặp
 ```
 
+## Giới hạn của toolchain Linux — đọc trước khi viết code mới
+
+clang 13 trong toolchain Theos trên Linux **không ký con trỏ hàm và con trỏ block**. Đo
+trên binary đã dựng: section `__text` có đúng **0** lệnh ký con trỏ. Bỏ `-fno-ptrauth-*`
+cũng không đổi — khi đó nó chỉ thêm `pacibsp`/`autibsp`, tức ký địa chỉ trả về.
+
+Trên arm64e, trường `invoke` của một block được khai báo
+`__ptrauth(ptrauth_key_function_pointer, true, 0xc0bb)`, và **bên gọi** — libdispatch,
+UIKit, Foundation — xác thực nó. Con trỏ chưa ký gặp bên gọi có xác thực thì nhảy vào
+địa chỉ còn nguyên bits chữ ký: `EXC_BAD_ACCESS` ở một địa chỉ dạng `0x0020000...`.
+
+**Quy tắc: không block, không con trỏ hàm đưa ra ngoài.** Cụ thể, tránh
+`dispatch_once`, `dispatch_async`, `addObserverForName:usingBlock:`,
+`sortUsingComparator:`, `enumerate…UsingBlock:`, `UIAlertAction …handler:^`,
+`notify_register_dispatch`.
+
+Vẫn an toàn, vì không đi qua con trỏ do ta tạo:
+
+- gọi method Objective-C — dùng relative method list (`__TEXT,__objc_methlist`),
+  libobjc tự tính IMP từ offset và tự ký lúc chạy
+- gọi hàm ngoài — qua `__auth_stubs` do linker sinh (`braa`), dyld ký `__auth_got`
+- target/action và `@selector(...)` — `SEL` không phải con trỏ hàm
+- `NSSortDescriptor`, `performSelector:`, `NSInvocation`
+
+`scripts/verify_package.py` kiểm tra tự động: bundle có block là **chặn phát hành**,
+dylib có block thì **cảnh báo** (giai đoạn 0 không chạm tới block nào, giai đoạn ≥ 1 có).
+
+Muốn dùng block: cần toolchain sinh arm64e đúng ABI, tức Xcode trên macOS.
+
 ## Known limitations
 
 - Việc đưa app lên dashboard (`ExperimentalDiscovery`) dựa trên cơ chế của iOS 14 và **chưa

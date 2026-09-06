@@ -49,6 +49,23 @@ def check_macho(path: Path, relative: str) -> list:
                 problems.append(f"{relative}: {name} qua @rpath nhưng binary không có "
                                 f"LC_RPATH nào")
 
+        # Block trên arm64e: bên GỌI xác thực con trỏ `invoke`. Toolchain Linux hiện tại
+        # không sinh lệnh ký con trỏ nào, nên mọi block đưa cho hệ thống đều là một
+        # lần crash được hẹn giờ — đây chính là lỗi Settings crash khi mở bảng cài đặt.
+        if image.uses_blocks() and not image.signs_pointers():
+            note = (f"{relative}: có block Objective-C nhưng mã không chứa lệnh ký con "
+                    f"trỏ nào. Trên arm64e, `invoke` của block được khai báo "
+                    f"__ptrauth(key_function_pointer, true, 0xc0bb) và bên gọi "
+                    f"(libdispatch, UIKit) xác thực nó — block chưa ký sẽ làm process "
+                    f"chết ở một địa chỉ còn nguyên bits chữ ký.")
+            if ".bundle/" in relative:
+                problems.append(note + " Bundle được Settings nạp và gọi ngay, nên đây là "
+                                       "lỗi chặn phát hành. Bỏ hết block khỏi bundle.")
+            else:
+                print(f"  CẢNH BÁO: {note}")
+                print(f"            Giai đoạn khởi tạo >= 1 sẽ chạy vào block và crash. "
+                      f"Giai đoạn 0 không đụng tới block nào.")
+
         fixups = image.chained_fixups[1] if image.chained_fixups else 0
         print(f"  {relative:58} {image.arch} fixups={fixups} ký={image.signed} "
               f"objc={image.objc_class_count()} pac={sum(image.pac_instructions().values())}")

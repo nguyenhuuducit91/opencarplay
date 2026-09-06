@@ -11,11 +11,32 @@ export THEOS_PACKAGE_SCHEME = rootless
 # đánh dấu slice arm64 thành arm64e thì dyld lại báo "bad bind opcode 0x09" vì luật
 # đọc binding của arm64e khác.
 #
-# -fno-ptrauth-*: trình biên dịch không sinh lệnh PAC trong mã của chính nó. Đây KHÔNG
-# phải để né một mâu thuẫn ABI như ghi chú cũ nói — linker vẫn sinh __auth_stubs dùng
-# braa và dyld vẫn ký con trỏ trong __auth_got (đo được: 82 lệnh braa, pointer_format
-# ARM64E), tức binary theo đúng ABI arm64e. Giữ các cờ này vì đó là cấu hình duy nhất
-# đã thực sự chạy trên máy; bỏ chúng cần một lần thử có kiểm chứng, không phải suy đoán.
+# -fno-ptrauth-*: trình biên dịch không sinh lệnh PAC trong mã của chính nó.
+#
+# GIỚI HẠN QUAN TRỌNG CỦA TOOLCHAIN NÀY — đọc trước khi viết code mới.
+#
+# clang 13 ở đây KHÔNG ký con trỏ hàm và con trỏ block, dù có cờ hay không (bỏ cờ thì nó
+# chỉ thêm pacibsp/autibsp, tức ký địa chỉ trả về). Đo trên binary đã dựng: section
+# __text có ĐÚNG 0 lệnh ký con trỏ.
+#
+# Hệ quả: MỌI BLOCK hoặc CON TRỎ HÀM đưa cho code hệ thống đều là một lần crash được hẹn
+# giờ. Trên arm64e, trường `invoke` của block khai báo
+# __ptrauth(ptrauth_key_function_pointer, true, 0xc0bb) và bên GỌI (libdispatch, UIKit,
+# Foundation) xác thực nó. Con trỏ chưa ký + bên gọi xác thực = nhảy vào địa chỉ còn
+# nguyên bits chữ ký, EXC_BAD_ACCESS dạng 0x0020000...
+#
+# Đây là nguyên nhân gốc của cả chuỗi sự cố: Settings crash khi mở bảng cài đặt
+# (dispatch_once), và nhiều khả năng cả những lần SpringBoard đơ ở giai đoạn >= 1
+# (dispatch_async, addObserverForName:usingBlock:).
+#
+# NHỮNG THỨ VẪN AN TOÀN, vì không đi qua con trỏ do ta tạo:
+#   • gọi method Objective-C — dùng relative method list (__TEXT,__objc_methlist),
+#     libobjc tự tính IMP từ offset và tự ký lúc chạy
+#   • gọi hàm ngoài — qua __auth_stubs do linker sinh (braa), dyld ký __auth_got
+#   • target/action và selector — SEL không phải con trỏ hàm
+#
+# scripts/verify_package.py bắt lỗi này: bundle có block là chặn phát hành, dylib có
+# block thì cảnh báo.
 ARCHS = arm64e
 TARGET = iphone:clang:16.5:15.0
 
