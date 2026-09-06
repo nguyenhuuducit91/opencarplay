@@ -389,6 +389,37 @@ cảnh báo nếu nó dùng đường dẫn MobileSubstrate cũ. `postinst` tự
 với `PreferenceLoader.dylib` — phụ thuộc bắt buộc, nên vị trí của nó là mốc đáng tin cho
 biết ElleKit trên máy đó đọc ở đâu.
 
+## arm64e phải có cờ CPU_SUBTYPE_PTRAUTH_ABI
+
+Tweak được nạp hay không phụ thuộc một bit trong `cpusubtype`:
+
+```
+bit 31 (0x80000000)  CPU_SUBTYPE_PTRAUTH_ABI — "ABI ptrauth có đánh phiên bản"
+bit 24-27            số phiên bản ABI
+```
+
+dyld từ chối slice arm64e thiếu bit đó. Với tweak, thất bại này **hoàn toàn im lặng**:
+injector gọi `dlopen`, nhận `NULL`, bỏ qua. Không lỗi, không log, không dấu hiệu nào —
+tweak chỉ đơn giản không tồn tại.
+
+Đo trên thiết bị thật, hai tweak mà ElleKit nạp được, đối chiếu với ta:
+
+| dylib | cpusubtype | PTRAUTH_ABI |
+|---|---|---|
+| Cephei | `0x80000002` | có |
+| PreferenceLoader | `0x80000002` | có |
+| OpenCarPlay 0.30–0.43 | `0x2` | **không** |
+
+clang 13 của toolchain Linux không đặt bit này. `scripts/mark_ptrauth_abi.py` đặt nó sau
+khi link, và **phải chạy trước `ldid`** vì sửa header làm hỏng chữ ký cũ.
+
+Đây là lý do dylib chưa từng được nạp vào process nào, ở mọi bản trước 0.44.0. Mọi thứ
+khác đều đúng: file đúng thư mục, plist hợp lệ, chữ ký hợp lệ, kiến trúc arm64e.
+
+`scripts/verify_package.py` nay chặn phát hành nếu thiếu cờ, và kiểm tra **chữ ký có bao
+trùm nội dung hiện tại không** — bắt đúng lớp lỗi "sửa binary sau khi ký" mà quy trình
+đóng gói này dễ mắc.
+
 ## Pointer authentication — đừng bao giờ dùng `-fno-ptrauth-*`
 
 Các bản 0.24–0.38 biên dịch với `-fno-ptrauth-calls -fno-ptrauth-returns

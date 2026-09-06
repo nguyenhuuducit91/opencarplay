@@ -90,6 +90,7 @@ class MachO:
         self.signed = False
         self.classic_binding = False
         self.symtab = None          # (symoff, nsyms, stroff, strsize)
+        self.code_signature = None  # (dataoff, datasize)
         self._parse()
 
     @property
@@ -132,6 +133,7 @@ class MachO:
                 self.symtab = struct.unpack_from("<IIII", self.data, p + 8)
             elif cmd == LC_CODE_SIGNATURE:
                 self.signed = True
+                self.code_signature = struct.unpack_from("<II", self.data, p + 8)
             p += cmdsize
 
     def pointer_formats(self):
@@ -230,6 +232,53 @@ class MachO:
         return any(name.startswith(("pac", "aut")) and name not in ("pacibsp", "autibsp",
                                                                     "paciasp", "autiasp")
                    for name in found)
+
+    def code_signature_matches(self):
+        """Chữ ký có bao trùm đúng nội dung file hiện tại không.
+
+        Trả (số trang khớp, tổng số trang), hoặc None nếu không đọc được chữ ký.
+
+        Cần thiết vì quy trình đóng gói sửa Mach-O SAU khi link: đổi phụ thuộc, làm
+        weak, bật cờ PTRAUTH_ABI. Mỗi bước đó làm hỏng chữ ký cũ, và nếu ký lại bị đặt
+        sai thứ tự thì binary vẫn "có chữ ký" nhưng nội dung không khớp — AMFI từ chối
+        và tweak im lặng không nạp.
+        """
+        import hashlib
+        if not self.code_signature:
+            return None
+        base = self.offset + self.code_signature[0]
+        data = self.data
+        try:
+            count = struct.unpack_from(">I", data, base + 8)[0]
+            cd_off = None
+            for i in range(count):
+                blob_type, offset = struct.unpack_from(">II", data, base + 12 + i * 8)
+                if struct.unpack_from(">I", data, base + offset)[0] == 0xFADE0C02:
+                    cd_off = base + offset
+                    break
+            if cd_off is None:
+                return None
+
+            hash_offset, _, _, slots, code_limit = struct.unpack_from("<xxxx", data, 0) \
+                if False else struct.unpack_from(">IIIII", data, cd_off + 16)
+            hash_size = data[cd_off + 36]
+            hash_type = data[cd_off + 37]
+            page_size = 1 << data[cd_off + 39]
+            digest = {1: hashlib.sha1, 2: hashlib.sha256, 3: hashlib.sha256}.get(hash_type)
+            if digest is None or page_size <= 1:
+                return None
+
+            matched = 0
+            for i in range(slots):
+                start = i * page_size
+                end = min(start + page_size, code_limit)
+                stored = data[cd_off + hash_offset + i * hash_size:
+                              cd_off + hash_offset + (i + 1) * hash_size]
+                if digest(data[start:end]).digest()[:hash_size] == stored:
+                    matched += 1
+            return matched, slots
+        except Exception:
+            return None
 
     def objc_class_count(self) -> int:
         entry = self.sections.get("__DATA_CONST,__objc_classlist") \

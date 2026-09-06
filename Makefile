@@ -133,6 +133,7 @@ after-stage::
 			/var/jb/Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate \
 			$$dylib || exit 1; \
 		python3 scripts/weaken_substrate.py $$dylib || exit 1; \
+		python3 scripts/mark_ptrauth_abi.py $$dylib || exit 1; \
 		$(LDID) -S $$dylib || exit 1; \
 	done
 	@python3 scripts/stamp_version.py $(THEOS_STAGING_DIR)

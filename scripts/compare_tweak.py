@@ -27,14 +27,18 @@ FLAGS = {
 
 
 def describe(path: Path) -> dict:
+    """Mô tả slice arm64e. Tweak của Apple/cộng đồng thường là FAT (arm64 + arm64e),
+    nên phải chọn đúng slice thay vì đọc từ offset 0."""
     data = path.read_bytes()
-    image = macho.read(path)[0]
+    images = macho.read(path)
+    image = next((m for m in images if m.arch == "arm64e"), images[0])
+    base = image.offset
     magic, cputype, cpusubtype, filetype, ncmds, sizeofcmds, flags = \
-        struct.unpack_from("<IiiIIII", data, 0)
+        struct.unpack_from("<IiiIIII", data, base)
 
     install_name = None
     minos = None
-    off = 32
+    off = base + 32
     for _ in range(ncmds):
         cmd, cmdsize = struct.unpack_from("<II", data, off)
         if cmd == 0x0D:
@@ -46,9 +50,11 @@ def describe(path: Path) -> dict:
         off += cmdsize
 
     return {
-        "kích thước": len(data),
+        "số slice": len(images),
+        "kích thước slice": "?" if len(images) > 1 else len(data),
         "filetype": {6: "MH_DYLIB", 8: "MH_BUNDLE"}.get(filetype, filetype),
         "cpusubtype": hex(cpusubtype & 0xFFFFFFFF),
+        "PTRAUTH_ABI": bool(cpusubtype & 0x80000000),
         "flags": " ".join(n for b, n in sorted(FLAGS.items()) if flags & b) or hex(flags),
         "install_name": install_name,
         "build": minos,

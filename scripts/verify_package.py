@@ -24,6 +24,18 @@ import macho
 def check_macho(path: Path, relative: str) -> list:
     problems = []
     for image in macho.read(path):
+        # dyld phân loại slice arm64e theo bit CPU_SUBTYPE_PTRAUTH_ABI. Thiếu bit đó,
+        # dyld từ chối nạp và với tweak thì thất bại hoàn toàn im lặng: injector gọi
+        # dlopen, nhận NULL, bỏ qua. Đo trên thiết bị: Cephei và PreferenceLoader —
+        # hai tweak nạp được — đều có 0x80000002; bản 0.30-0.42 của ta có 0x2 và chưa
+        # từng được nạp lần nào.
+        if image.arch == "arm64e" and not (image.cpusubtype & 0x80000000):
+            problems.append(
+                f"{relative}: arm64e nhưng thiếu cờ CPU_SUBTYPE_PTRAUTH_ABI "
+                f"(cpusubtype={image.cpusubtype & 0xFFFFFFFF:#x}, cần {0x80000002:#x}). "
+                f"dyld sẽ từ chối nạp và injector bỏ qua trong im lặng. "
+                f"Chạy scripts/mark_ptrauth_abi.py rồi ký lại.")
+
         if image.arch != "arm64e":
             problems.append(f"{relative}: {image.arch}, không phải arm64e — "
                             f"dyld sẽ báo incompatible architecture")
@@ -34,6 +46,13 @@ def check_macho(path: Path, relative: str) -> list:
             problems.append(f"{relative}: chained fixups rỗng — không bind được symbol nào")
         if not image.signed:
             problems.append(f"{relative}: chưa ký — dyld từ chối")
+        else:
+            result = image.code_signature_matches()
+            if result is not None and result[0] != result[1]:
+                problems.append(
+                    f"{relative}: chữ ký KHÔNG khớp nội dung ({result[0]}/{result[1]} trang). "
+                    f"Binary bị sửa sau khi ký — kiểm tra thứ tự các bước trong after-stage; "
+                    f"ldid phải chạy SAU cùng.")
 
         for name, weak in image.dylibs:
             if "Substrate" not in name and "ellekit" not in name:

@@ -6,22 +6,22 @@ Codename: opencarplay
 Architectures: iphoneos-arm64
 Components: main
 Description: OpenCarPlay — dùng ứng dụng iOS trên màn hình CarPlay (rootless, iOS 18.6.x)
-Date: Sun, 06 Sep 2026 02:29:24 GMT
+Date: Sun, 06 Sep 2026 02:36:29 GMT
 MD5Sum:
- ef43e040dfeb0384d5ee4dad1fb24f90 2187 Packages
- 04ce1e14e4c86130509d0fffda264f9d 721 Packages.gz
- 9aa49ee40f03956ed7729e5eff5a3e30 879 Packages.bz2
- b9be66144714e30247552bd3ca4f742e 780 Packages.xz
- b4f82578b6243c8764a1ce0fc8891f7d 708 Packages.zst
+ cbb1387ce0f13c99f4be87a919973a86 2187 Packages
+ 69a61616c5dc9435aa424c94da25b3da 722 Packages.gz
+ a28b63748a25f952ab3b480eccd5eece 869 Packages.bz2
+ 8f3576d5b51e43cdf76122d60bd916d6 784 Packages.xz
+ 93d38441936c7aab6b252121f74cf906 706 Packages.zst
 SHA1:
- 5cded0f2bf81133d43bba661fc07e6e16e9020ca 2187 Packages
- 08e2959d3eaefee159d12f6d65a8b21eaf1ada98 721 Packages.gz
- a7c7c5c6e930b1b3b579345cf15bf91cfe9151bd 879 Packages.bz2
- 0c2fbea96938e81950e16aa27b65039cdcd6c3a4 780 Packages.xz
- c15c2f32729533740473367f2bf87509c003e8f0 708 Packages.zst
+ 1c7962c180d441e50d869799f4ebb19041797d78 2187 Packages
+ 32c11559a89c86e5edccc28b63ccc0b2bfad68d3 722 Packages.gz
+ 5983bf21b7d8180573df27b932d9c9d44bf56282 869 Packages.bz2
+ 7d7b791a6898e132de429759f18a7baae66d2814 784 Packages.xz
+ 9d33a3eaa9a72e94b185d04ab45da265f3d07c4e 706 Packages.zst
 SHA256:
- e58d5ceb78acd256501f37486a59ba860371c43b3f6f710f281ee11e4b556405 2187 Packages
- e57283754aadecbd9e18fc11337296e5515e53beef576edca6227451dcac2e5e 721 Packages.gz
- 1c1bfcbbe9a0c4eacf5d29c01abcbfb6d4d1c95f83bdfa8800c16809c7fe4e74 879 Packages.bz2
- 1133c6ddec5d0afb3625811eaeae65ec7f442a7f19ff66047e6e2bb530f711a1 780 Packages.xz
- 8cdedb1cbb2b933bf7836228d06eea9b5a18c0228d33ea46a927cf848b3bf28f 708 Packages.zst
+ 22e1aa67b5422588649de25331dd0fc7d9a8f1bf0b8c4a407cc39df91a34f76a 2187 Packages
+ 0d11203746e30435865ef2f9a3bc8817732dfa2f510ca190327674438b0db499 722 Packages.gz
+ 078c757b228904bdd4c7cdacb4c68ac6a99f2c8c4ed0164fa198dcc6644549ea 869 Packages.bz2
+ 74f2641c61fbb5fe890a8e473b187b83857cb9c1c393c51efb02818a18c97ddc 784 Packages.xz
+ ba2caafde9294d9871d7a07f9585e84462cd6766612d8537021ec566b469c0da 706 Packages.zst
