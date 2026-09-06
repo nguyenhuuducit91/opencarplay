@@ -35,6 +35,18 @@ for KILLSWITCH in "$PREFS_DIR/com.opencarplay.disabled" \
     fi
 done
 
+# Từ 0.38.0 dylib mới thực sự được nạp (trước đó nó nằm ở thư mục ElleKit không đọc).
+# Nghĩa là file STAGE sót lại từ các lần chẩn đoán trước, vốn vô hại, nay có hiệu lực
+# thật và sẽ chạy mã chưa kiểm chứng ngay lần khởi động đầu tiên. Vô hiệu hoá nó — đổi
+# tên chứ không xoá, để khôi phục được.
+STAGE_FILE="/var/mobile/Media/OpenCarPlay/STAGE"
+if [ -f "$STAGE_FILE" ] && [ "$(cat "$STAGE_FILE" 2>/dev/null | tr -dc 0-9)" != "0" ]; then
+    mv "$STAGE_FILE" "$STAGE_FILE.disabled-by-install"
+    echo "OpenCarPlay: đã vô hiệu hoá file STAGE cũ (giá trị > 0)."
+    echo "  Từ bản này dylib mới thực sự được nạp, nên giá trị đó sẽ chạy mã chưa kiểm chứng."
+    echo "  Khôi phục nếu bạn thật sự muốn: mv $STAGE_FILE.disabled-by-install $STAGE_FILE"
+fi
+
 # File STAGE qua cáp USB thắng mọi cấu hình trong Cài đặt. Nếu còn sót lại từ lần cứu
 # hộ trước, người dùng sẽ đổi giai đoạn trong Cài đặt mà không thấy gì thay đổi.
 if [ -f /var/mobile/Media/OpenCarPlay/STAGE ]; then
@@ -65,5 +77,21 @@ echo "OpenCarPlay: đã cài."
 echo "  Mặc định là GIAI ĐOẠN 0 — dylib được nạp nhưng không chạm gì vào hệ thống."
 echo "  Respring, rồi mở Cài đặt → OpenCarPlay."
 echo "  Sau khi cài thêm ứng dụng mới, chạy: opencarplay-refresh-apps"
+
+# Tự kiểm tra chỗ cài. preferenceloader là phụ thuộc bắt buộc, nên vị trí dylib của nó
+# chính là thư mục mà ElleKit trên máy này đọc — mốc đối chiếu đáng tin nhất có được.
+REF=""
+for f in "$JBROOT/usr/lib/TweakInject/PreferenceLoader.dylib" \
+         "$JBROOT/Library/MobileSubstrate/DynamicLibraries/PreferenceLoader.dylib"; do
+    [ -f "$f" ] && REF="$f" && break
+done
+if [ -n "$REF" ]; then
+    INJECT_DIR=$(dirname "$REF")
+    if [ ! -f "$INJECT_DIR/OpenCarPlay.dylib" ]; then
+        echo "OpenCarPlay: CẢNH BÁO — dylib không nằm cùng chỗ với PreferenceLoader."
+        echo "  ElleKit đọc: $INJECT_DIR"
+        echo "  Tweak sẽ KHÔNG được nạp. Báo lại kèm dòng này."
+    fi
+fi
 
 exit 0

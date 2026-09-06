@@ -52,6 +52,26 @@ OpenCarPlay_FILES += $(wildcard Core/*.m) $(wildcard Core/*.mm) $(wildcard Core/
 OpenCarPlay_CFLAGS = -fobjc-arc -Wall -Wno-unused-variable -ICore -ITweak/CarPlayApp -ITweak/SpringBoard
 OpenCarPlay_CFLAGS += -fno-ptrauth-calls -fno-ptrauth-returns -fno-ptrauth-indirect-gotos -fno-ptrauth-auth-traps
 OpenCarPlay_FRAMEWORKS = UIKit
+
+# ĐƯỜNG DẪN MÀ ELLEKIT THỰC SỰ ĐỌC.
+#
+# Theos mặc định cài tweak vào /Library/MobileSubstrate/DynamicLibraries. Trên Dopamine
+# + ElleKit, thư mục đó KHÔNG được đọc: injector chỉ quét /var/jb/usr/lib/TweakInject.
+#
+# Đo trên 66 crash report lấy từ máy người dùng — thống kê thư mục của mọi dylib mà các
+# process thực sự nạp:
+#
+#     20x  /var/jb/usr/lib/TweakInject          (PreferenceLoader.dylib)
+#      0x  /var/jb/Library/MobileSubstrate/DynamicLibraries
+#
+# Hậu quả của việc cài sai chỗ: dylib CHƯA TỪNG được nạp vào process nào. Không có
+# /var/mobile/Media/OpenCarPlay/loaded-SpringBoard.txt, không có hook nào chạy, và
+# CarPlay không hiện ứng dụng nào — đúng triệu chứng người dùng báo.
+#
+# Cài vào ĐÚNG MỘT chỗ. Cài cả hai thì nơi nào đọc cả hai sẽ nạp dylib hai lần: lớp
+# Objective-C đăng ký trùng, hook cài chồng.
+OpenCarPlay_INSTALL_PATH = /usr/lib/TweakInject
+
 OpenCarPlay_LDFLAGS = -Wl,-segalign,4000
 OpenCarPlay_LDFLAGS += -Wl,-rpath,/var/jb/Library/Frameworks
 OpenCarPlay_LDFLAGS += -Wl,-rpath,/Library/Frameworks

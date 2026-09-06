@@ -315,11 +315,33 @@ def check_preference_loader_entries(root: Path, bundles: list) -> list:
     return problems
 
 
+# Thư mục mà injector thực sự quét. Trên Dopamine + ElleKit chỉ có TweakInject; đo trên
+# 66 crash report lấy từ máy thật, MobileSubstrate/DynamicLibraries không xuất hiện lần
+# nào. Cài sai chỗ thì dylib không bao giờ được nạp và tweak im lặng không làm gì —
+# không lỗi, không log, không dấu hiệu nào.
+INJECTION_DIRS = ("usr/lib/TweakInject", "Library/MobileSubstrate/DynamicLibraries")
+
+
 def check_tweak_layout(root: Path) -> list:
     problems = []
-    dylibs = list(root.rglob("Library/MobileSubstrate/DynamicLibraries/*.dylib"))
+    dylibs = [p for p in root.rglob("*.dylib") if p.is_file()]
     if not dylibs:
-        return ["gói không chứa dylib nào trong Library/MobileSubstrate/DynamicLibraries"]
+        return ["gói không chứa dylib nào"]
+
+    for dylib in dylibs:
+        parent = str(dylib.parent).replace(str(root), "").lstrip("/")
+        parent = parent[len("var/jb/"):] if parent.startswith("var/jb/") else parent
+        if parent not in INJECTION_DIRS:
+            problems.append(
+                f"{dylib.name}: cài vào '{parent}', không phải thư mục injector đọc "
+                f"({' hoặc '.join(INJECTION_DIRS)}). Tweak sẽ không bao giờ được nạp.")
+        elif parent == "Library/MobileSubstrate/DynamicLibraries":
+            print(f"  CẢNH BÁO: {dylib.name} cài vào MobileSubstrate/DynamicLibraries — "
+                  f"ElleKit trên jailbreak rootless hiện đại chỉ quét usr/lib/TweakInject.")
+
+    if len({p.name for p in dylibs}) != len(dylibs):
+        problems.append("cùng một dylib được cài vào nhiều thư mục injector — "
+                        "nơi nào đọc cả hai sẽ nạp nó hai lần")
 
     for dylib in dylibs:
         filter_plist = dylib.with_suffix(".plist")

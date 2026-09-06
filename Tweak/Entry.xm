@@ -222,7 +222,6 @@ static void OCPBootstrap(BOOL isSpringBoard, BOOL isCarPlayApp, int stage) {
                 [[OCPLaunchCoordinator sharedCoordinator] start];
                 [[OCPAudioObserver sharedObserver] start];
                 [OCPSelfTest runIfEnabled];
-                [OCPCrashGuard markSessionHealthy];
             }
             if (stage < OCPStartupStageHooks) {
                 OCPLogError_(@"dừng ở giai đoạn %d theo cấu hình", stage);
@@ -323,5 +322,9 @@ static void OCPWriteLoadMarker(const char *processName, int killSwitch, int stag
 
     dispatch_async(dispatch_get_main_queue(), ^{
         OCPBootstrap(isSpringBoard, isCarPlayApp, stage);
+        // Về được tới đây nghĩa là khởi tạo không treo, ở BẤT KỲ giai đoạn nào.
+        // Bản trước chỉ đánh dấu ở giai đoạn 4, nên giai đoạn 1-3 không bao giờ xoá
+        // được dấu và mọi lần khởi động kế tiếp đều bị lưới an toàn hạ về 0.
+        if (isSpringBoard) [OCPCrashGuard markSessionHealthy];
     });
 }

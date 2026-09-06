@@ -366,6 +366,29 @@ Chạy theo thứ tự; mỗi mục hỏng đều chỉ tới một phần khác
 [ ] crash guard tự tạo file đó khi SpringBoard chết lặp
 ```
 
+## Nơi cài dylib — ElleKit đọc thư mục nào
+
+Tweak cài vào **`/var/jb/usr/lib/TweakInject/`**, không phải
+`/var/jb/Library/MobileSubstrate/DynamicLibraries/` như Theos mặc định.
+
+Trên Dopamine + ElleKit, thư mục mặc định của Theos **không được đọc**. Đo trên 66 crash
+report lấy từ máy thật, thống kê thư mục của mọi dylib mà các process thực sự nạp:
+
+```
+ 20x  /var/jb/usr/lib/TweakInject          (PreferenceLoader.dylib)
+  0x  /var/jb/Library/MobileSubstrate/DynamicLibraries
+```
+
+Các bản ≤ 0.37 cài sai chỗ, nên dylib **chưa từng được nạp vào process nào** — không có
+`/var/mobile/Media/OpenCarPlay/loaded-SpringBoard.txt`, không hook nào chạy, CarPlay
+không hiện ứng dụng. Không có lỗi, không có log, không dấu hiệu gì: đúng kiểu hỏng khó
+nhất để nhận ra.
+
+`scripts/verify_package.py` nay chặn phát hành nếu dylib nằm ngoài thư mục injector, và
+cảnh báo nếu nó dùng đường dẫn MobileSubstrate cũ. `postinst` tự đối chiếu vị trí dylib
+với `PreferenceLoader.dylib` — phụ thuộc bắt buộc, nên vị trí của nó là mốc đáng tin cho
+biết ElleKit trên máy đó đọc ở đâu.
+
 ## Giới hạn của toolchain Linux — đọc trước khi viết code mới
 
 clang 13 trong toolchain Theos trên Linux **không ký con trỏ hàm và con trỏ block**. Đo
