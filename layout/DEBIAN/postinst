@@ -78,8 +78,74 @@ echo "  Mặc định là GIAI ĐOẠN 0 — dylib được nạp nhưng không 
 echo "  Respring, rồi mở Cài đặt → OpenCarPlay."
 echo "  Sau khi cài thêm ứng dụng mới, chạy: opencarplay-refresh-apps"
 
-# Tự kiểm tra chỗ cài. preferenceloader là phụ thuộc bắt buộc, nên vị trí dylib của nó
-# chính là thư mục mà ElleKit trên máy này đọc — mốc đối chiếu đáng tin nhất có được.
+# --- BÁO CÁO CÀI ĐẶT -----------------------------------------------------------
+#
+# Ghi ra vùng AFC để đọc được qua cáp USB mà không cần SSH hay Filza.
+#
+# Sinh ra vì một câu hỏi không trả lời nổi từ xa: dylib có THẬT SỰ nằm trong thư mục
+# injector không. syslog chứng minh được nó không được nạp, nhưng không cho biết vì sao
+# — file không có, hay có mà bị từ chối. postinst chạy quyền root và đọc được /var/jb,
+# nên nó là chỗ duy nhất trả lời được câu đó.
+REPORT_DIR=/var/mobile/Media/OpenCarPlay
+REPORT="$REPORT_DIR/install-report.txt"
+mkdir -p "$REPORT_DIR" 2>/dev/null || true
+
+{
+    echo "OpenCarPlay - bao cao cai dat"
+    echo "thoi diem : $(date 2>/dev/null)"
+    echo "jbroot    : ${JBROOT:-(khong phat hien duoc)}"
+    echo
+
+    echo "--- thu muc injector ---"
+    for d in "$JBROOT/usr/lib/TweakInject" "$JBROOT/Library/MobileSubstrate/DynamicLibraries"; do
+        if [ -e "$d" ]; then
+            echo "[co] $d"
+            [ -L "$d" ] && echo "     LA SYMLINK -> $(readlink "$d" 2>/dev/null)"
+            ls -la "$d" 2>/dev/null | sed 's/^/     /'
+        else
+            echo "[khong co] $d"
+        fi
+    done
+    echo
+
+    echo "--- file cua OpenCarPlay ---"
+    for f in "$JBROOT/usr/lib/TweakInject/OpenCarPlay.dylib" \
+             "$JBROOT/usr/lib/TweakInject/OpenCarPlay.plist" \
+             "$JBROOT/Library/MobileSubstrate/DynamicLibraries/OpenCarPlay.dylib"; do
+        if [ -e "$f" ]; then
+            echo "[co] $f  ($(wc -c < "$f" 2>/dev/null) byte)"
+        else
+            echo "[KHONG CO] $f"
+        fi
+    done
+    echo
+
+    echo "--- dpkg ghi nhan goi cai nhung gi ---"
+    dpkg -L com.opencarplay.tweak 2>&1 | sed 's/^/     /' || echo "     (dpkg khong tra loi)"
+    echo
+
+    echo "--- tweak khac dang co (doi chieu) ---"
+    ls "$JBROOT/usr/lib/TweakInject"/*.dylib 2>/dev/null | sed 's/^/     /' \
+        || echo "     (khong liet ke duoc)"
+} > "$REPORT" 2>&1
+chmod 644 "$REPORT" 2>/dev/null || true
+chown mobile "$REPORT" 2>/dev/null || true
+
+echo "OpenCarPlay: da ghi bao cao cai dat vao $REPORT"
+echo "  Doc tu may tinh: afcclient get /OpenCarPlay/install-report.txt report.txt"
+
+# Đăng ký trust cache nếu jailbreak có công cụ. Trên Dopamine, binary không nằm trong
+# trust cache sẽ bị từ chối nạp và ElleKit bỏ qua trong im lặng.
+for TC in "$JBROOT/basebin/jbctl" "$JBROOT/usr/bin/jbctl"; do
+    if [ -x "$TC" ]; then
+        "$TC" trustcache add "$JBROOT/usr/lib/TweakInject/OpenCarPlay.dylib" >/dev/null 2>&1 \
+            && echo "OpenCarPlay: da them dylib vao trust cache" || true
+        break
+    fi
+done
+
+# Đối chiếu với PreferenceLoader — phụ thuộc bắt buộc, nên vị trí dylib của nó chính là
+# thư mục mà ElleKit trên máy này đọc.
 REF=""
 for f in "$JBROOT/usr/lib/TweakInject/PreferenceLoader.dylib" \
          "$JBROOT/Library/MobileSubstrate/DynamicLibraries/PreferenceLoader.dylib"; do
@@ -88,9 +154,9 @@ done
 if [ -n "$REF" ]; then
     INJECT_DIR=$(dirname "$REF")
     if [ ! -f "$INJECT_DIR/OpenCarPlay.dylib" ]; then
-        echo "OpenCarPlay: CẢNH BÁO — dylib không nằm cùng chỗ với PreferenceLoader."
-        echo "  ElleKit đọc: $INJECT_DIR"
-        echo "  Tweak sẽ KHÔNG được nạp. Báo lại kèm dòng này."
+        echo "OpenCarPlay: CANH BAO - dylib khong nam cung cho voi PreferenceLoader."
+        echo "  ElleKit doc: $INJECT_DIR"
+        echo "  Tweak se KHONG duoc nap."
     fi
 fi
 
