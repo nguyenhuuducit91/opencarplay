@@ -49,22 +49,19 @@ def check_macho(path: Path, relative: str) -> list:
                 problems.append(f"{relative}: {name} qua @rpath nhưng binary không có "
                                 f"LC_RPATH nào")
 
-        # Block trên arm64e: bên GỌI xác thực con trỏ `invoke`. Toolchain Linux hiện tại
-        # không sinh lệnh ký con trỏ nào, nên mọi block đưa cho hệ thống đều là một
-        # lần crash được hẹn giờ — đây chính là lỗi Settings crash khi mở bảng cài đặt.
+        # Block trên arm64e: trường `invoke` khai báo
+        # __ptrauth(key_function_pointer, true, 0xc0bb) và bên GỌI (libdispatch, UIKit)
+        # xác thực nó. Nếu binary tạo block mà mã không có lệnh ký con trỏ (pacia/paciza)
+        # thì lần gọi đầu tiên là EXC_BAD_ACCESS ở địa chỉ còn nguyên bits chữ ký.
+        #
+        # Nguyên nhân duy nhất đã gặp: biên dịch với -fno-ptrauth-calls. Xem ghi chú
+        # đầu Makefile.
         if image.uses_blocks() and not image.signs_pointers():
-            note = (f"{relative}: có block Objective-C nhưng mã không chứa lệnh ký con "
-                    f"trỏ nào. Trên arm64e, `invoke` của block được khai báo "
-                    f"__ptrauth(key_function_pointer, true, 0xc0bb) và bên gọi "
-                    f"(libdispatch, UIKit) xác thực nó — block chưa ký sẽ làm process "
-                    f"chết ở một địa chỉ còn nguyên bits chữ ký.")
-            if ".bundle/" in relative:
-                problems.append(note + " Bundle được Settings nạp và gọi ngay, nên đây là "
-                                       "lỗi chặn phát hành. Bỏ hết block khỏi bundle.")
-            else:
-                print(f"  CẢNH BÁO: {note}")
-                print(f"            Giai đoạn khởi tạo >= 1 sẽ chạy vào block và crash. "
-                      f"Giai đoạn 0 không đụng tới block nào.")
+            problems.append(
+                f"{relative}: tạo block Objective-C nhưng mã KHÔNG có lệnh ký con trỏ "
+                f"(pacia/paciza). Trên arm64e bên gọi sẽ xác thực con trỏ `invoke` và "
+                f"process sẽ chết ở địa chỉ còn nguyên bits chữ ký. "
+                f"Gần như chắc chắn do -fno-ptrauth-calls — bỏ cờ đó đi.")
 
         fixups = image.chained_fixups[1] if image.chained_fixups else 0
         print(f"  {relative:58} {image.arch} fixups={fixups} ký={image.signed} "

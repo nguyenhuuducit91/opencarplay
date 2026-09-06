@@ -4,39 +4,37 @@
 
 export THEOS_PACKAGE_SCHEME = rootless
 
-# arm64e.
+# arm64e, KHÔNG tắt pointer authentication.
 #
 # Process hệ thống trên A12+ là arm64e và dyld từ chối thư viện arm64:
 # "incompatible architecture (have 'arm64', need 'arm64e')". Không có đường vòng —
 # đánh dấu slice arm64 thành arm64e thì dyld lại báo "bad bind opcode 0x09" vì luật
 # đọc binding của arm64e khác.
 #
-# -fno-ptrauth-*: trình biên dịch không sinh lệnh PAC trong mã của chính nó.
+# VÌ SAO BỎ -fno-ptrauth-* (từ 0.39.0)
 #
-# GIỚI HẠN QUAN TRỌNG CỦA TOOLCHAIN NÀY — đọc trước khi viết code mới.
+# Các bản 0.24–0.38 dùng bộ cờ đó, với lý do "clang 13 sinh lệnh PAC không đúng chuẩn
+# iOS 18.6". Lý do đó sai, và chính bộ cờ mới là nguyên nhân của cả chuỗi sự cố.
 #
-# clang 13 ở đây KHÔNG ký con trỏ hàm và con trỏ block, dù có cờ hay không (bỏ cờ thì nó
-# chỉ thêm pacibsp/autibsp, tức ký địa chỉ trả về). Đo trên binary đã dựng: section
-# __text có ĐÚNG 0 lệnh ký con trỏ.
+# Đo trực tiếp — biên dịch cùng một hàm tạo block trên stack rồi quét opcode:
 #
-# Hệ quả: MỌI BLOCK hoặc CON TRỎ HÀM đưa cho code hệ thống đều là một lần crash được hẹn
-# giờ. Trên arm64e, trường `invoke` của block khai báo
-# __ptrauth(ptrauth_key_function_pointer, true, 0xc0bb) và bên GỌI (libdispatch, UIKit,
-# Foundation) xác thực nó. Con trỏ chưa ký + bên gọi xác thực = nhảy vào địa chỉ còn
-# nguyên bits chữ ký, EXC_BAD_ACCESS dạng 0x0020000...
+#     có -fno-ptrauth-*   -> __text: braa                          (KHÔNG có pacia)
+#     không có cờ         -> __text: pacia, pacibsp, retab, braa
 #
-# Đây là nguyên nhân gốc của cả chuỗi sự cố: Settings crash khi mở bảng cài đặt
-# (dispatch_once), và nhiều khả năng cả những lần SpringBoard đơ ở giai đoạn >= 1
-# (dispatch_async, addObserverForName:usingBlock:).
+# `pacia` chính là lệnh ký con trỏ `invoke` của block. Trên arm64e trường đó khai báo
+# __ptrauth(ptrauth_key_function_pointer, true, 0xc0bb) và bên GỌI — libdispatch,
+# UIKit, Foundation — xác thực nó. Thiếu `pacia` nghĩa là mọi block và mọi con trỏ hàm
+# ta đưa cho hệ thống đều chưa ký, và lần gọi đầu tiên là EXC_BAD_ACCESS ở địa chỉ còn
+# nguyên bits chữ ký. Crash report từ máy người dùng xác nhận đúng chữ đó:
 #
-# NHỮNG THỨ VẪN AN TOÀN, vì không đi qua con trỏ do ta tạo:
-#   • gọi method Objective-C — dùng relative method list (__TEXT,__objc_methlist),
-#     libobjc tự tính IMP từ offset và tự ký lúc chạy
-#   • gọi hàm ngoài — qua __auth_stubs do linker sinh (braa), dyld ký __auth_got
-#   • target/action và selector — SEL không phải con trỏ hàm
+#     EXC_BAD_ACCESS ... 0x00200001fc76dff8 -> 0x00000001fc76dff8
+#     (possible pointer authentication failure)
+#     objc_msgSend <- NSClassFromString <- OpenCarPlayPrefs <- findAndRunAllInitializers
 #
-# scripts/verify_package.py bắt lỗi này: bundle có block là chặn phát hành, dylib có
-# block thì cảnh báo.
+# GHI CHÚ VỀ PHÉP ĐO CŨ: kết luận "toolchain không ký con trỏ dù có cờ hay không" ở các
+# bản trước là sai, do bộ quét opcode trong scripts/macho.py chỉ so khớp PACDA/AUTDA
+# (0xDAC10800/0xDAC11800) mà bỏ sót PACIA (0xDAC10000) và PACIZA (0xDAC12000) — đúng
+# hai lệnh mà trình biên dịch thật sự dùng. Đã sửa; xem _PAC_OPCODES trong macho.py.
 ARCHS = arm64e
 TARGET = iphone:clang:16.5:15.0
 
@@ -50,7 +48,6 @@ OpenCarPlay_FILES  = $(wildcard Tweak/*.xm) $(wildcard Tweak/*.mm)
 OpenCarPlay_FILES += $(wildcard Tweak/*/*.xm) $(wildcard Tweak/*/*.mm)
 OpenCarPlay_FILES += $(wildcard Core/*.m) $(wildcard Core/*.mm) $(wildcard Core/*.c)
 OpenCarPlay_CFLAGS = -fobjc-arc -Wall -Wno-unused-variable -ICore -ITweak/CarPlayApp -ITweak/SpringBoard
-OpenCarPlay_CFLAGS += -fno-ptrauth-calls -fno-ptrauth-returns -fno-ptrauth-indirect-gotos -fno-ptrauth-auth-traps
 OpenCarPlay_FRAMEWORKS = UIKit
 
 # ĐƯỜNG DẪN MÀ ELLEKIT THỰC SỰ ĐỌC.

@@ -79,6 +79,40 @@ info "cắm/rút CarPlay rồi chạy lại script để so sánh danh sách pro
 
 hr
 echo "7. DYLIB ĐÃ ĐƯỢC INJECT?"
+# Chỗ cài quan trọng hơn mọi thứ khác: sai thư mục thì tweak không bao giờ được nạp và
+# không có lỗi nào để mà lần. preferenceloader là phụ thuộc bắt buộc, nên vị trí dylib
+# của nó cho biết ElleKit trên máy này đọc ở đâu.
+REF=""
+for f in "$JBROOT/usr/lib/TweakInject/PreferenceLoader.dylib" \
+         "$JBROOT/Library/MobileSubstrate/DynamicLibraries/PreferenceLoader.dylib"; do
+    [ -f "$f" ] && REF="$f" && break
+done
+if [ -n "$REF" ]; then
+    INJECT_DIR=$(dirname "$REF")
+    info "ElleKit đọc: $INJECT_DIR  (suy ra từ PreferenceLoader.dylib)"
+    if [ -f "$INJECT_DIR/OpenCarPlay.dylib" ]; then
+        ok "OpenCarPlay.dylib nằm đúng chỗ"
+        [ -f "$INJECT_DIR/OpenCarPlay.plist" ] && ok "có file filter cùng tên" \
+            || no "THIẾU $INJECT_DIR/OpenCarPlay.plist — ElleKit không biết nạp vào đâu"
+    else
+        no "OpenCarPlay.dylib KHÔNG có trong $INJECT_DIR — tweak sẽ không bao giờ nạp"
+        for d in "$JBROOT/usr/lib/TweakInject" "$JBROOT/Library/MobileSubstrate/DynamicLibraries"; do
+            [ -f "$d/OpenCarPlay.dylib" ] && no "  nó đang nằm ở: $d"
+        done
+    fi
+else
+    info "không tìm thấy PreferenceLoader.dylib — preferenceloader chưa cài?"
+fi
+
+MARKER=/var/mobile/Media/OpenCarPlay/loaded-SpringBoard.txt
+if [ -f "$MARKER" ]; then
+    ok "dấu nạp: $MARKER"
+    sed 's/^/    /' "$MARKER"
+else
+    no "chưa có $MARKER — constructor chưa từng chạy trong SpringBoard này."
+    no "  Nếu vừa cài xong thì respring rồi kiểm tra lại."
+fi
+
 for proc in SpringBoard CarPlay; do
     PID=$(pgrep -x "$proc" 2>/dev/null | head -1)
     if [ -n "$PID" ]; then

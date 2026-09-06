@@ -47,8 +47,29 @@ _PAC_EXACT = {
 _PAC_MASKED = {
     0xD71F0800: "braa", 0xD73F0800: "blraa",
     0xD71F0C00: "brab", 0xD73F0C00: "blrab",
-    0xDAC10800: "pac(reg)", 0xDAC11800: "aut(reg)",
 }
+
+# Họ lệnh PAC/AUT dạng "data-processing (1 source)":
+#     1101 1010 1100 0001 | opcode2=00001 | opcode(6) | Rn(5) | Rd(5)
+# tức 0xDAC10000 | (opcode << 10) | (Rn << 5) | Rd, với opcode 0..17.
+#
+# Bản trước chỉ so khớp 0xDAC10800 và 0xDAC11800 — đó là PACDA và AUTDA, hai lệnh
+# hiếm dùng. PACIA (opcode 0) và PACIZA (opcode 8) — hai lệnh mà trình biên dịch thật
+# sự dùng để ký con trỏ hàm — đều bị bỏ sót, nên phép đo "mã không có lệnh ký con trỏ
+# nào" là sai.
+_PAC_OPCODES = {
+    0: "pacia", 1: "pacib", 2: "pacda", 3: "pacdb",
+    4: "autia", 5: "autib", 6: "autda", 7: "autdb",
+    8: "paciza", 9: "pacizb", 10: "pacdza", 11: "pacdzb",
+    12: "autiza", 13: "autizb", 14: "autdza", 15: "autdzb",
+    16: "xpaci", 17: "xpacd",
+}
+
+
+def _pac_family(word: int):
+    if (word & 0xFFFFC000) != 0xDAC10000:
+        return None
+    return _PAC_OPCODES.get((word >> 10) & 0x3F)
 
 
 class MachO:
@@ -144,7 +165,8 @@ class MachO:
                 continue
             for i in range(0, size - 3, 4):
                 word = struct.unpack_from("<I", self.data, self.offset + off + i)[0]
-                name = _PAC_EXACT.get(word) or _PAC_MASKED.get(word & 0xFFFFFC00)
+                name = (_PAC_EXACT.get(word) or _PAC_MASKED.get(word & 0xFFFFFC00)
+                        or _pac_family(word))
                 if name:
                     found[name] = found.get(name, 0) + 1
         return found

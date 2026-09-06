@@ -389,34 +389,45 @@ cảnh báo nếu nó dùng đường dẫn MobileSubstrate cũ. `postinst` tự
 với `PreferenceLoader.dylib` — phụ thuộc bắt buộc, nên vị trí của nó là mốc đáng tin cho
 biết ElleKit trên máy đó đọc ở đâu.
 
-## Giới hạn của toolchain Linux — đọc trước khi viết code mới
+## Pointer authentication — đừng bao giờ dùng `-fno-ptrauth-*`
 
-clang 13 trong toolchain Theos trên Linux **không ký con trỏ hàm và con trỏ block**. Đo
-trên binary đã dựng: section `__text` có đúng **0** lệnh ký con trỏ. Bỏ `-fno-ptrauth-*`
-cũng không đổi — khi đó nó chỉ thêm `pacibsp`/`autibsp`, tức ký địa chỉ trả về.
+Các bản 0.24–0.38 biên dịch với `-fno-ptrauth-calls -fno-ptrauth-returns
+-fno-ptrauth-indirect-gotos -fno-ptrauth-auth-traps`, với lý do "clang 13 sinh lệnh PAC
+không đúng chuẩn iOS 18.6". **Lý do đó sai, và chính bộ cờ đó là nguyên nhân của phần lớn
+sự cố của dự án này.**
 
-Trên arm64e, trường `invoke` của một block được khai báo
-`__ptrauth(ptrauth_key_function_pointer, true, 0xc0bb)`, và **bên gọi** — libdispatch,
-UIKit, Foundation — xác thực nó. Con trỏ chưa ký gặp bên gọi có xác thực thì nhảy vào
-địa chỉ còn nguyên bits chữ ký: `EXC_BAD_ACCESS` ở một địa chỉ dạng `0x0020000...`.
+Đo trực tiếp — biên dịch cùng một hàm tạo block trên stack, rồi quét opcode trong
+`__TEXT,__text`:
 
-**Quy tắc: không block, không con trỏ hàm đưa ra ngoài.** Cụ thể, tránh
-`dispatch_once`, `dispatch_async`, `addObserverForName:usingBlock:`,
-`sortUsingComparator:`, `enumerate…UsingBlock:`, `UIAlertAction …handler:^`,
-`notify_register_dispatch`.
+| | lệnh sinh ra |
+|---|---|
+| có `-fno-ptrauth-*` | `braa` |
+| không có cờ | `pacia`, `pacibsp`, `retab`, `braa` |
 
-Vẫn an toàn, vì không đi qua con trỏ do ta tạo:
+`pacia` là lệnh ký con trỏ `invoke` của block. Trên arm64e trường đó khai báo
+`__ptrauth(ptrauth_key_function_pointer, true, 0xc0bb)` và **bên gọi** — libdispatch,
+UIKit, Foundation — xác thực nó. Thiếu `pacia` thì mọi block và mọi con trỏ hàm giao cho
+hệ thống đều chưa ký, và lần gọi đầu tiên là `EXC_BAD_ACCESS` ở một địa chỉ còn nguyên
+bits chữ ký. Crash report lấy từ máy thật xác nhận đúng chữ đó:
 
-- gọi method Objective-C — dùng relative method list (`__TEXT,__objc_methlist`),
-  libobjc tự tính IMP từ offset và tự ký lúc chạy
-- gọi hàm ngoài — qua `__auth_stubs` do linker sinh (`braa`), dyld ký `__auth_got`
-- target/action và `@selector(...)` — `SEL` không phải con trỏ hàm
-- `NSSortDescriptor`, `performSelector:`, `NSInvocation`
+```
+EXC_BAD_ACCESS  0x00200001fc76dff8 -> 0x00000001fc76dff8
+                (possible pointer authentication failure)
+objc_msgSend  <-  NSClassFromString  <-  OpenCarPlayPrefs  <-  findAndRunAllInitializers
+```
 
-`scripts/verify_package.py` kiểm tra tự động: bundle có block là **chặn phát hành**,
-dylib có block thì **cảnh báo** (giai đoạn 0 không chạm tới block nào, giai đoạn ≥ 1 có).
+Bỏ cờ đi, binary có `pacia`, `paciza`, `blraa` — đúng ABI arm64e, và block dùng được
+bình thường.
 
-Muốn dùng block: cần toolchain sinh arm64e đúng ABI, tức Xcode trên macOS.
+**Ghi chú về một phép đo sai của chính dự án này.** Kết luận trước đó — "toolchain không
+ký con trỏ dù có cờ hay không" — là sai, do bộ quét opcode trong `scripts/macho.py` chỉ
+so khớp `PACDA`/`AUTDA` (`0xDAC10800`, `0xDAC11800`) mà bỏ sót `PACIA` (`0xDAC10000`) và
+`PACIZA` (`0xDAC12000`), đúng hai lệnh mà trình biên dịch thật sự dùng. Đã sửa; xem
+`_PAC_OPCODES`. Bài học lặp lại lần thứ ba trong dự án này: **kiểm tra máy đo trước khi
+tin số nó đưa ra.**
+
+`scripts/verify_package.py` nay chặn phát hành nếu binary tạo block mà không có lệnh ký
+con trỏ.
 
 ## Known limitations
 

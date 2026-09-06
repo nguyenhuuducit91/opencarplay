@@ -23,9 +23,9 @@ OpenCarPlayPrefs_INSTALL_PATH = /Library/PreferenceBundles
 OpenCarPlayPrefs_FRAMEWORKS = UIKit
 OpenCarPlayPrefs_PRIVATE_FRAMEWORKS = Preferences
 OpenCarPlayPrefs_CFLAGS = -fobjc-arc -Wall
-# Cùng bộ cờ với dylib chính (xem ghi chú đầu Makefile ở thư mục gốc). Giữ hai binary
-# sinh mã giống hệt nhau để điều đúng với cái này cũng đúng với cái kia.
-OpenCarPlayPrefs_CFLAGS += -fno-ptrauth-calls -fno-ptrauth-returns \
-                           -fno-ptrauth-indirect-gotos -fno-ptrauth-auth-traps
+# KHÔNG dùng -fno-ptrauth-*. Bộ cờ đó làm trình biên dịch bỏ lệnh `pacia`, tức mọi block
+# và con trỏ hàm đưa cho hệ thống đều chưa ký — chính là lý do bundle này từng làm
+# Settings chết với "possible pointer authentication failure". Xem ghi chú đầu Makefile
+# ở thư mục gốc.
 
 include $(THEOS_MAKE_PATH)/bundle.mk
