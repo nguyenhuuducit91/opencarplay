@@ -2,21 +2,27 @@
 //
 // GIAI ĐOẠN KHỞI TẠO
 //
-// Quá trình khởi tạo chia thành các GIAI ĐOẠN đánh số. Mặc định chạy hết — đó là hành
-// vi đúng của một tweak đã cài. File STAGE chỉ dùng để HẠ giai đoạn khi cần chẩn đoán,
-// và máy tính ghi được nó qua cáp USB mà không cần vào giao diện iPhone.
+// Quá trình khởi tạo chia thành các GIAI ĐOẠN đánh số, và MẶC ĐỊNH LÀ 0 — nạp dylib,
+// ghi một dòng log, không chạm gì khác. Người dùng nâng dần giai đoạn khi đã sẵn sàng.
 //
-// Nhờ vậy nguyên nhân treo máy xác định được bằng thực nghiệm: hạ dần giai đoạn cho tới
-// khi máy khởi động lại được thì giai đoạn kế tiếp chính là chỗ hỏng.
+// VÌ SAO MẶC ĐỊNH LÀ 0
 //
-// Điều khiển từ máy tính:
-//     echo 0 > /tmp/STAGE && afcclient put /tmp/STAGE /OpenCarPlay/STAGE  # chỉ nạp dylib
-//     afcclient rm /OpenCarPlay/STAGE                                     # trở lại đầy đủ
-//     afcclient put /tmp/x /OpenCarPlay/DISABLED                          # tắt hẳn
+// Vì chưa ai chứng minh được giai đoạn 1–5 chạy an toàn trên iOS 18.6. Cơ chế giai đoạn
+// sinh ra chính vì khởi tạo đầy đủ từng làm treo SpringBoard hai lần, và nguyên nhân
+// CHƯA BAO GIỜ được tìm ra — nó mới chỉ được né. Bản 0.31.0 đổi mặc định thành "chạy
+// hết" với lý do "công cụ gỡ lỗi không nên là hành vi mặc định". Lý lẽ đó đúng về
+// nguyên tắc và sai về thực tế: nó làm sống lại đúng cái treo cũ và người dùng mất máy.
 //
-// LỊCH SỬ: bản 0.22–0.30 lấy giai đoạn 0 làm MẶC ĐỊNH. Hậu quả là tweak cài xong không
-// làm gì cả trừ khi người dùng đẩy file STAGE qua cáp — một công cụ gỡ lỗi bị để lại
-// làm hành vi mặc định.
+// Giai đoạn đọc theo thứ tự ưu tiên, tất cả bằng open/read thuần — không Objective-C,
+// không cfprefsd, không thứ gì có thể chặn trên đường khởi động:
+//
+//   1. /var/mobile/Media/OpenCarPlay/STAGE            — ghi được qua cáp USB (cứu hộ)
+//   2. /var/mobile/Library/Preferences/com.opencarplay.stage — bảng cài đặt ghi
+//   3. không có file nào -> giai đoạn 0
+//
+// Điều khiển từ máy tính khi không vào được giao diện:
+//     echo 0 > /tmp/STAGE && afcclient put /tmp/STAGE /OpenCarPlay/STAGE
+//     afcclient put /tmp/x /OpenCarPlay/DISABLED     # tắt hẳn
 //
 // Copyright (C) 2026 OpenCarPlay contributors — GPLv3.
 
@@ -70,33 +76,54 @@ typedef NS_ENUM(int, OCPStartupStage) {
     OCPStartupStageHooks          = 5,
 };
 
-/// Giai đoạn khi không có file điều khiển: chạy hết.
-#define OCP_DEFAULT_STARTUP_STAGE OCPStartupStageHooks
+/// Bảng cài đặt ghi giai đoạn vào đây. Văn bản thuần, một số nguyên — cố ý, để
+/// constructor đọc được mà không cần parse plist và không cần hỏi cfprefsd.
+static const char *const kStagePreferencePath =
+    "/var/mobile/Library/Preferences/com.opencarplay.stage";
 
-/// Đọc giai đoạn từ file điều khiển. Dùng open/read thuần, không Objective-C, vì hàm
-/// này được gọi từ constructor.
-static int OCPReadStartupStage(void) {
-    int fd = open("/var/mobile/Media/OpenCarPlay/STAGE", O_RDONLY);
-    if (fd < 0) return OCP_DEFAULT_STARTUP_STAGE;
+/// Dấu "đang khởi tạo". Tạo trước khi khởi tạo, xoá khi phiên chạy đã ổn định
+/// (OCPCrashGuard markSessionHealthy). Còn sót lại ở lần nạp sau nghĩa là lần trước
+/// không bao giờ tới đích — gần như chắc chắn là treo.
+///
+/// Đây là lưới an toàn mà bộ đếm crash không thay được: treo thì SpringBoard không
+/// chết, không có crash report, không có lần nạp thứ hai để mà đếm.
+static const char *const kBootstrapMarkerPath =
+    "/var/mobile/Library/Preferences/com.opencarplay.bootstrapping";
 
-    char buffer[8] = {0};
+/// Đọc một số nguyên từ file văn bản thuần. -1 nếu file không có hoặc không chứa số.
+/// open/read thuần: hàm này chạy trong constructor.
+static int OCPReadIntegerFile(const char *path) {
+    int fd = open(path, O_RDONLY);
+    if (fd < 0) return -1;
+
+    char buffer[16] = {0};
     ssize_t bytes = read(fd, buffer, sizeof(buffer) - 1);
     close(fd);
-    // File rỗng là lỗi tay người dùng, không phải yêu cầu tắt tweak.
-    if (bytes <= 0) return OCP_DEFAULT_STARTUP_STAGE;
+    if (bytes <= 0) return -1;
 
-    // File chỉ chứa khoảng trắng cũng vậy: atoi() trả 0 cho mọi chuỗi không phải số,
-    // và với mặc định cũ điều đó âm thầm vô hiệu hoá tweak.
-    int hasDigit = 0;
-    for (size_t i = 0; i < sizeof(buffer) && buffer[i] != '\0'; i++) {
-        if (buffer[i] >= '0' && buffer[i] <= '9') { hasDigit = 1; break; }
+    // atoi() trả 0 cho mọi chuỗi không phải số. Với một giá trị mà 0 nghĩa là "tắt",
+    // nhầm lẫn đó âm thầm vô hiệu hoá tweak, nên phải phân biệt tường minh.
+    for (ssize_t i = 0; i < bytes; i++) {
+        if (buffer[i] >= '0' && buffer[i] <= '9') return atoi(buffer);
     }
-    if (!hasDigit) return OCP_DEFAULT_STARTUP_STAGE;
+    return -1;
+}
 
-    int stage = atoi(buffer);
+static int OCPClampStage(int stage) {
     if (stage < OCPStartupStageLoadOnly) return OCPStartupStageLoadOnly;
     if (stage > OCPStartupStageHooks) return OCPStartupStageHooks;
     return stage;
+}
+
+/// Giai đoạn yêu cầu, chưa xét tới lưới an toàn.
+static int OCPRequestedStartupStage(void) {
+    int stage = OCPReadIntegerFile("/var/mobile/Media/OpenCarPlay/STAGE");
+    if (stage >= 0) return OCPClampStage(stage);
+
+    stage = OCPReadIntegerFile(kStagePreferencePath);
+    if (stage >= 0) return OCPClampStage(stage);
+
+    return OCPStartupStageLoadOnly;
 }
 
 /// Kiểm tra cả hai vị trí kill switch. Vị trí trong /var/mobile/Media ghi được qua USB.
@@ -251,7 +278,15 @@ static void OCPWriteLoadMarker(const char *processName, int killSwitch, int stag
     if (!isSpringBoard && !isCarPlayApp) return;
 
     int killSwitch = OCPKillSwitchFileFound();
-    int stage = OCPReadStartupStage();
+    int stage = OCPRequestedStartupStage();
+
+    // Lần nạp trước bắt đầu khởi tạo mà không bao giờ báo ổn định. Hạ về chỉ-nạp để
+    // máy lên được; người dùng nâng lại trong Cài đặt sau khi đã biết vì sao.
+    int previousAttemptStalled = (stage > OCPStartupStageLoadOnly && isSpringBoard &&
+                                  access(kBootstrapMarkerPath, F_OK) == 0);
+    if (previousAttemptStalled) {
+        stage = OCPStartupStageLoadOnly;
+    }
 
     // Dòng log này là bằng chứng quan trọng nhất: nó cho biết constructor có chạy tới
     // đây không, và hai file điều khiển có đọc được từ trong sandbox của process không.
@@ -260,10 +295,10 @@ static void OCPWriteLoadMarker(const char *processName, int killSwitch, int stag
     // hiện trong idevicesyslog qua cáp USB. Bản trước chỉ dùng os_log và không thấy gì
     // trong log, mà điều đó không phân biệt được "dylib không nạp" với "log bị lọc".
     os_log(OS_LOG_DEFAULT,
-           "[OpenCarPlay] ctor: process=%{public}s killswitch=%d stage=%d",
-           processName, killSwitch, stage);
-    syslog(LOG_ERR, "[OpenCarPlay] ctor: process=%s killswitch=%d stage=%d",
-           processName, killSwitch, stage);
+           "[OpenCarPlay] ctor: process=%{public}s killswitch=%d stage=%d stalled=%d",
+           processName, killSwitch, stage, previousAttemptStalled);
+    syslog(LOG_ERR, "[OpenCarPlay] ctor: process=%s killswitch=%d stage=%d stalled=%d",
+           processName, killSwitch, stage, previousAttemptStalled);
 
     // Ghi dấu ra file trong vùng AFC. Log hệ thống chỉ xuất hiện đúng lúc process khởi
     // động và trôi mất nếu không bắt kịp; file thì đọc được qua cáp bất cứ lúc nào.
@@ -272,6 +307,19 @@ static void OCPWriteLoadMarker(const char *processName, int killSwitch, int stag
 
     if (killSwitch != 0) return;
     if (stage <= OCPStartupStageLoadOnly) return;
+
+    // Đặt dấu TRƯỚC khi khởi tạo. Nếu phần dưới treo, lần nạp sau thấy dấu này và
+    // hạ về chỉ-nạp — máy lên được mà không cần cáp USB.
+    if (isSpringBoard) {
+        int marker = open(kBootstrapMarkerPath, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (marker >= 0) {
+            char line[64];
+            int length = snprintf(line, sizeof(line), "stage=%d time=%ld\n",
+                                  stage, (long)time(NULL));
+            if (length > 0) { ssize_t w = write(marker, line, (size_t)length); (void)w; }
+            close(marker);
+        }
+    }
 
     dispatch_async(dispatch_get_main_queue(), ^{
         OCPBootstrap(isSpringBoard, isCarPlayApp, stage);

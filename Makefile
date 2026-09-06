@@ -61,11 +61,20 @@ include $(THEOS_MAKE_PATH)/aggregate.mk
 # @loader_path/.jbroot/Library/Frameworks), nên @rpath vốn đã resolve được. Đổi sang
 # đường tuyệt đối chỉ để bớt một biến số. Sửa Mach-O làm hỏng chữ ký nên phải ký lại.
 #
-# KHÔNG làm weak phụ thuộc này. Bản 0.24–0.30 có làm, dựa trên chẩn đoán "Theos không
-# sinh LC_RPATH" đã nêu ở trên — chẩn đoán đó sai. Weak còn nguy hiểm hơn: nếu
-# CydiaSubstrate thật sự vắng mặt thì MSHookMessageEx bằng NULL và Logos gọi thẳng vào
-# đó, tức crash ở chỗ khó lần ra thay vì một lỗi dyld nói rõ nguyên nhân.
-# Tweak khai báo Depends: ellekit, mà ellekit cài sẵn CydiaSubstrate.framework.
+# Phụ thuộc này PHẢI là weak. Bản 0.31.0 bỏ bước làm weak với lý do "Theos có sinh
+# LC_RPATH nên @rpath vẫn resolve được" — và làm treo máy người dùng.
+#
+# Lý lẽ đó trả lời sai câu hỏi. @rpath có resolve được hay không là chuyện thứ yếu;
+# chuyện chính là FILE ĐÓ CÓ TỒN TẠI TRÊN MÁY hay không. ElleKit không phải bản cài nào
+# cũng đặt CydiaSubstrate.framework ở /var/jb/Library/Frameworks. Khi một phụ thuộc BẮT
+# BUỘC không resolve được, dyld giết luôn process đang nạp — SpringBoard chết trước cả
+# khi constructor chạy, nên kill switch trong code lẫn kill switch qua cáp USB đều vô
+# dụng. Máy chỉ còn đường Safe Mode.
+#
+# Với weak, dyld để symbol bằng NULL và process vẫn sống. Rủi ro "Logos gọi thẳng vào
+# NULL" được chặn bằng OCPHookingRuntimeAvailable() trong Tweak/CarPlayApp/Hooks.xm:
+# kiểm tra dlsym trước mọi %init. Tweak mất khả năng hook, máy vẫn dùng được — đó là
+# đánh đổi đúng.
 
 # ldid không nằm trong PATH mặc định của make (shell không nạp profile của người dùng).
 LDID ?= $(firstword $(wildcard $(HOME)/.local/bin/ldid) \
@@ -79,6 +88,7 @@ after-stage::
 			@rpath/CydiaSubstrate.framework/CydiaSubstrate \
 			/var/jb/Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate \
 			$$dylib || exit 1; \
+		python3 scripts/weaken_substrate.py $$dylib || exit 1; \
 		$(LDID) -S $$dylib || exit 1; \
 	done
 	@python3 scripts/stamp_version.py $(THEOS_STAGING_DIR)

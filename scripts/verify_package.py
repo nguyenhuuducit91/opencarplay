@@ -38,14 +38,16 @@ def check_macho(path: Path, relative: str) -> list:
         for name, weak in image.dylibs:
             if "Substrate" not in name and "ellekit" not in name:
                 continue
-            if weak:
+            if not weak:
                 problems.append(
-                    f"{relative}: phụ thuộc {name} ở dạng WEAK. Khi thư viện vắng mặt, "
-                    f"MSHookMessageEx bằng NULL và Logos gọi thẳng vào đó — crash ở chỗ "
-                    f"không lần ra được, thay vì một lỗi dyld nói rõ nguyên nhân.")
+                    f"{relative}: phụ thuộc {name} ở dạng BẮT BUỘC. Nếu file đó không có "
+                    f"trên máy người dùng, dyld GIẾT process đang nạp — SpringBoard chết "
+                    f"trước khi constructor chạy, nên mọi kill switch đều vô dụng và máy "
+                    f"chỉ còn đường Safe Mode. Đây chính là lỗi của bản 0.31.0. "
+                    f"Chạy scripts/weaken_substrate.py rồi ký lại.")
             if name.startswith("@rpath/") and not image.rpaths:
                 problems.append(f"{relative}: {name} qua @rpath nhưng binary không có "
-                                f"LC_RPATH nào — dyld sẽ giết process")
+                                f"LC_RPATH nào")
 
         fixups = image.chained_fixups[1] if image.chained_fixups else 0
         print(f"  {relative:58} {image.arch} fixups={fixups} ký={image.signed} "

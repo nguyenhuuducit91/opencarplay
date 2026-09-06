@@ -8,6 +8,17 @@
 NSString *const OCPPrefsDomain = @"com.opencarplay";
 NSString *const OCPPrefsChangedNotification = @"com.opencarplay.prefs-changed";
 NSString *const OCPPrefsAllowedApplicationsKey = @"AllowedApplications";
+NSString *const OCPPrefsStartupStageKey = @"StartupStage";
+
+static NSString *OCPPrefsStagePath(void) {
+    return [NSString stringWithFormat:@"/var/mobile/Library/Preferences/%@.stage",
+            OCPPrefsDomain];
+}
+
+static NSString *OCPPrefsBootstrapMarkerPath(void) {
+    return [NSString stringWithFormat:@"/var/mobile/Library/Preferences/%@.bootstrapping",
+            OCPPrefsDomain];
+}
 
 NSString *OCPPrefsPath(void) {
     return [NSString stringWithFormat:@"/var/mobile/Library/Preferences/%@.plist",
@@ -66,6 +77,47 @@ void OCPPrefsWrite(NSString *key, id value) {
     notify_post(OCPPrefsChangedNotification.UTF8String);
 }
 
+NSInteger OCPPrefsReadStartupStage(void) {
+    NSString *contents = [NSString stringWithContentsOfFile:OCPPrefsStagePath()
+                                                   encoding:NSUTF8StringEncoding
+                                                      error:NULL];
+    if (contents.length == 0) return 0;
+
+    NSScanner *scanner = [NSScanner scannerWithString:contents];
+    NSInteger stage = 0;
+    if (![scanner scanInteger:&stage]) return 0;
+    if (stage < 0) return 0;
+    if (stage > 5) return 5;
+    return stage;
+}
+
+BOOL OCPPrefsWriteStartupStage(NSInteger stage) {
+    if (stage < 0) stage = 0;
+    if (stage > 5) stage = 5;
+
+    NSString *contents = [NSString stringWithFormat:@"%ld\n", (long)stage];
+    NSError *error = nil;
+    BOOL ok = [contents writeToFile:OCPPrefsStagePath()
+                         atomically:YES
+                           encoding:NSUTF8StringEncoding
+                              error:&error];
+    if (!ok) {
+        NSLog(@"[OpenCarPlay] không ghi được giai đoạn khởi tạo: %@", error);
+        return NO;
+    }
+
+    // Người dùng vừa chọn tường minh, nên bỏ dấu "lần trước treo". Không bỏ thì lần nạp
+    // sau vẫn tự hạ về 0 và lựa chọn vừa rồi không có tác dụng gì.
+    [[NSFileManager defaultManager] removeItemAtPath:OCPPrefsBootstrapMarkerPath() error:NULL];
+
+    notify_post(OCPPrefsChangedNotification.UTF8String);
+    return YES;
+}
+
+BOOL OCPPrefsBootstrapStalled(void) {
+    return [[NSFileManager defaultManager] fileExistsAtPath:OCPPrefsBootstrapMarkerPath()];
+}
+
 void OCPPrefsReset(void) {
     CFStringRef domain = (__bridge CFStringRef)OCPPrefsDomain;
     NSArray *keys = CFBridgingRelease(CFPreferencesCopyKeyList(
@@ -75,6 +127,9 @@ void OCPPrefsReset(void) {
                               kCFPreferencesCurrentUser, kCFPreferencesAnyHost);
     }
     CFPreferencesAppSynchronize(domain);
-    [[NSFileManager defaultManager] removeItemAtPath:OCPPrefsPath() error:NULL];
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    [fileManager removeItemAtPath:OCPPrefsPath() error:NULL];
+    [fileManager removeItemAtPath:OCPPrefsStagePath() error:NULL];
+    [fileManager removeItemAtPath:OCPPrefsBootstrapMarkerPath() error:NULL];
     notify_post(OCPPrefsChangedNotification.UTF8String);
 }

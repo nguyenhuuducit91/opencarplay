@@ -61,6 +61,12 @@ FOUNDATION_EXPORT NSString *OCPMediaKillSwitchPath(void);
 /// Kill switch đang bật?
 FOUNDATION_EXPORT BOOL OCPKillSwitchEngaged(void);
 
+/// File văn bản thuần chứa giai đoạn khởi tạo. Xem ghi chú đầu Tweak/Entry.xm.
+FOUNDATION_EXPORT NSString *OCPStartupStagePath(void);
+
+/// Dấu "đang khởi tạo", đặt trước khi khởi tạo và xoá khi phiên chạy đã ổn định.
+FOUNDATION_EXPORT NSString *OCPBootstrapMarkerPath(void);
+
 NS_ASSUME_NONNULL_END
 
 #endif /* OCP_DEFINES_H */

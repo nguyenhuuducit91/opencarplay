@@ -129,7 +129,11 @@ static const NSTimeInterval kHealthyAfter = 60.0;
                    dispatch_get_global_queue(QOS_CLASS_BACKGROUND, 0), ^{
         @try {
             [[NSFileManager defaultManager] removeItemAtPath:[self historyPath] error:NULL];
-            OCPLogC(OCPLogCore, @"phiên chạy ổn định — đã xoá lịch sử nạp");
+            // Dấu "đang khởi tạo" do constructor đặt. Xoá ở đây, và CHỈ ở đây: còn sót
+            // lại ở lần nạp sau nghĩa là lần này đã treo trước khi tới được chỗ này.
+            [[NSFileManager defaultManager] removeItemAtPath:OCPBootstrapMarkerPath()
+                                                       error:NULL];
+            OCPLogC(OCPLogCore, @"phiên chạy ổn định — đã xoá lịch sử nạp và dấu khởi tạo");
         } @catch (NSException *exception) {
             // không quan trọng
         }

@@ -59,9 +59,16 @@ Sileo → Sources → thêm URL trên → cài **OpenCarPlay** → respring.
 3. Cài bằng Sileo (hoặc `dpkg -i`)
 4. Respring — chỉ cần khi thay đổi ảnh hưởng SpringBoard; thay đổi phía dashboard chỉ cần
    `killall -9 CarPlay`
-5. Respring, rồi mở **Cài đặt → OpenCarPlay** và bật công tắc chính
-6. **Cài đặt → OpenCarPlay → Chọn ứng dụng** — danh sách app đã cài hiện ngay trong bảng
-7. Cắm CarPlay
+5. Respring, rồi mở **Cài đặt → OpenCarPlay**
+6. **Giai đoạn khởi tạo** mặc định là **0** — dylib được nạp nhưng không chạm gì vào hệ
+   thống. Nâng từng bậc một, respring sau mỗi bậc (xem cảnh báo bên dưới)
+7. Bật công tắc chính, rồi **Chọn ứng dụng**
+8. Cắm CarPlay
+
+> **Giai đoạn 1–5 chưa được kiểm chứng trên iOS 18.6 và đã từng làm treo máy.** Chỉ giai
+> đoạn 0 là an toàn đã biết. Nếu một bậc làm treo, lần khởi động sau tweak tự hạ về 0 —
+> nhưng bạn vẫn phải tắt/bật máy cứng một lần. Trước khi nâng bậc, hãy chuẩn bị sẵn
+> đường cứu hộ ở mục [Troubleshooting](#troubleshooting).
 
 Hoặc dùng script (tự build → copy → cài → restart):
 

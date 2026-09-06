@@ -83,6 +83,18 @@ static NSString *OCPLoadMarkerPath(NSString *processName) {
     [specifiers addObject:[self valueRowWithIdentifier:@"OCPStatusApps"
                                                  label:@"Ứng dụng đã chọn"
                                                 getter:@selector(applicationCountValue:)]];
+
+    if (OCPPrefsBootstrapStalled()) {
+        PSSpecifier *warning =
+            [PSSpecifier groupSpecifierWithName:@"Đã tự hạ về giai đoạn 0"];
+        [warning setProperty:@"Lần khởi động trước, OpenCarPlay bắt đầu khởi tạo và không "
+                             @"bao giờ báo là đã chạy ổn định — gần như chắc chắn là treo. "
+                             @"Tweak đã tự hạ về \"chỉ nạp\" để máy lên được.\n\n"
+                             @"Chọn lại giai đoạn bên dưới để thử tiếp; nâng từng bậc một "
+                             @"và respring sau mỗi bậc thì sẽ biết chính xác bậc nào hỏng."
+                      forKey:@"footerText"];
+        [specifiers addObject:warning];
+    }
     return specifiers;
 }
 
@@ -133,6 +145,11 @@ static NSString *OCPLoadMarkerPath(NSString *processName) {
     NSString *key = [specifier propertyForKey:@"key"];
     if (key.length == 0) return [specifier propertyForKey:@"default"];
 
+    // Giai đoạn khởi tạo nằm ngoài plist chung — xem ghi chú ở OCPPrefsCommon.h.
+    if ([key isEqualToString:OCPPrefsStartupStageKey]) {
+        return @(OCPPrefsReadStartupStage());
+    }
+
     id value = OCPPrefsRead()[key];
     return value ?: [specifier propertyForKey:@"default"];
 }
@@ -141,10 +158,31 @@ static NSString *OCPLoadMarkerPath(NSString *processName) {
     NSString *key = [specifier propertyForKey:@"key"];
     if (key.length == 0) return;
 
+    if ([key isEqualToString:OCPPrefsStartupStageKey]) {
+        if (!OCPPrefsWriteStartupStage([value integerValue])) {
+            [self showAlertWithTitle:@"Không lưu được"
+                             message:@"Không ghi được file giai đoạn khởi tạo. Cấu hình "
+                                     @"chưa thay đổi.\n\nĐặt tay bằng Filza hoặc SSH:\n"
+                                     @"/var/mobile/Library/Preferences/com.opencarplay.stage"];
+        }
+        [self reloadSpecifiers];
+        return;
+    }
+
     OCPPrefsWrite(key, value);
 
     // Tắt công tắc chính thì các tuỳ chọn phụ thuộc nó cũng phải hiện đúng trạng thái.
     if ([key isEqualToString:@"Enabled"]) [self reloadSpecifiers];
+}
+
+- (void)showAlertWithTitle:(NSString *)title message:(NSString *)message {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:title
+                                                                  message:message
+                                                           preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"OK"
+                                              style:UIAlertActionStyleDefault
+                                            handler:nil]];
+    [self presentViewController:alert animated:YES completion:nil];
 }
 
 #pragma mark - Hành động

@@ -33,14 +33,24 @@ for KILLSWITCH in "$PREFS_DIR/com.opencarplay.disabled" \
     fi
 done
 
-# File STAGE là công cụ gỡ lỗi. Nếu còn sót lại từ lần chẩn đoán trước, nó sẽ giữ tweak
-# ở giai đoạn thấp và người dùng tưởng bản mới cũng hỏng.
+# File STAGE qua cáp USB thắng mọi cấu hình trong Cài đặt. Nếu còn sót lại từ lần cứu
+# hộ trước, người dùng sẽ đổi giai đoạn trong Cài đặt mà không thấy gì thay đổi.
 if [ -f /var/mobile/Media/OpenCarPlay/STAGE ]; then
-    echo "OpenCarPlay: còn file STAGE gỡ lỗi — tweak sẽ chạy ở giai đoạn rút gọn."
-    echo "  Xoá để chạy đầy đủ: rm /var/mobile/Media/OpenCarPlay/STAGE"
+    echo "OpenCarPlay: còn file STAGE cứu hộ — nó GHI ĐÈ lựa chọn trong Cài đặt."
+    echo "  Xoá để Cài đặt có tác dụng trở lại:"
+    echo "    rm /var/mobile/Media/OpenCarPlay/STAGE"
 fi
 
-echo "OpenCarPlay: đã cài. Respring để phần trong SpringBoard có hiệu lực,"
-echo "  rồi bật trong Cài đặt → OpenCarPlay."
+# Dấu "đang khởi tạo" còn sót nghĩa là lần khởi động trước đã treo. Cố ý KHÔNG xoá:
+# nó là thứ giữ cho lần khởi động tới hạ về giai đoạn 0 và máy lên được.
+if [ -f "$PREFS_DIR/com.opencarplay.bootstrapping" ]; then
+    echo "OpenCarPlay: lần khởi động trước không hoàn tất khởi tạo."
+    echo "  Lần tới tweak tự hạ về giai đoạn 0 (chỉ nạp) để máy lên được."
+    echo "  Chọn lại giai đoạn trong Cài đặt → OpenCarPlay khi bạn muốn thử tiếp."
+fi
+
+echo "OpenCarPlay: đã cài."
+echo "  Mặc định là GIAI ĐOẠN 0 — dylib được nạp nhưng không chạm gì vào hệ thống."
+echo "  Respring, rồi mở Cài đặt → OpenCarPlay để cấu hình và nâng giai đoạn."
 
 exit 0

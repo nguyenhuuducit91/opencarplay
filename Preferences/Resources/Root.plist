@@ -8,9 +8,54 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>Dùng ứng dụng iOS thông thường trên màn hình CarPlay.
+			<string>OpenCarPlay khởi tạo theo bậc. Mặc định là 0: dylib được nạp nhưng KHÔNG chạm gì vào hệ thống — đó là bậc duy nhất đã được kiểm chứng trên iOS 18.6.
 
-Khi công tắc này tắt, tweak không chạm vào bất cứ thứ gì — CarPlay hoạt động y như khi chưa cài.</string>
+Các bậc trên chưa được kiểm chứng và đã từng làm treo máy. Nâng từng bậc một, respring sau mỗi bậc. Nếu một bậc làm treo, lần khởi động sau tweak tự hạ về 0 để máy lên được.
+
+Cứu hộ qua cáp USB khi không vào được giao diện:
+  afcclient put &lt;file rỗng&gt; /OpenCarPlay/DISABLED</string>
+			<key>label</key>
+			<string>Giai đoạn khởi tạo</string>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSLinkListCell</string>
+			<key>default</key>
+			<integer>0</integer>
+			<key>defaults</key>
+			<string>com.opencarplay</string>
+			<key>detail</key>
+			<string>PSListItemsController</string>
+			<key>id</key>
+			<string>OCPStartupStage</string>
+			<key>key</key>
+			<string>StartupStage</string>
+			<key>label</key>
+			<string>Giai đoạn</string>
+			<key>validTitles</key>
+			<array>
+				<string>0 — chỉ nạp dylib (an toàn)</string>
+				<string>1 — nhận diện môi trường</string>
+				<string>2 — đọc cấu hình</string>
+				<string>3 — theo dõi màn hình CarPlay</string>
+				<string>4 — điều phối khởi chạy</string>
+				<string>5 — đầy đủ, gồm hook dashboard</string>
+			</array>
+			<key>validValues</key>
+			<array>
+				<integer>0</integer>
+				<integer>1</integer>
+				<integer>2</integer>
+				<integer>3</integer>
+				<integer>4</integer>
+				<integer>5</integer>
+			</array>
+		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>Công tắc chính. Khi tắt, tweak không đổi gì trong hệ thống kể cả khi giai đoạn khởi tạo được nâng lên.</string>
 		</dict>
 		<dict>
 			<key>cell</key>
@@ -100,7 +145,7 @@ Khi công tắc này tắt, tweak không chạm vào bất cứ thứ gì — Ca
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>Hai mục dưới đây thay đổi hành vi thật của CarPlay và chưa được kiểm chứng trên iOS 18.6. Nếu dashboard hoặc SpringBoard có vấn đề, tắt chúng rồi respring. Tweak cũng tự tắt nếu phát hiện SpringBoard khởi động lại liên tục.</string>
+			<string>Hai mục dưới đây thay đổi hành vi thật của CarPlay và chưa được kiểm chứng trên iOS 18.6. Chúng chỉ có tác dụng từ giai đoạn 4 trở lên.</string>
 			<key>label</key>
 			<string>Thử nghiệm</string>
 		</dict>

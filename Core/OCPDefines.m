@@ -51,9 +51,20 @@ void OCPMigrateLegacyPreferences(void) {
 
 NSDictionary<NSString *, id> *OCPPreferencesCopyRaw(void) {
     @try {
-        CFStringRef domain = (__bridge CFStringRef)OCPPreferencesDomain;
-        CFPreferencesAppSynchronize(domain);
+        // FILE TRƯỚC, CFPreferences sau — thứ tự này quan trọng.
+        //
+        // CFPreferences nói chuyện với cfprefsd qua XPC. Hàm này được gọi rất sớm trong
+        // quá trình SpringBoard khởi động, trên main queue; một lời gọi XPC chặn ở đó là
+        // đúng công thức làm treo máy ở màn hình khởi động. Đọc file thì không bao giờ
+        // chặn vào một process khác.
+        //
+        // Đọc file không bị cũ, vì bảng cài đặt gọi CFPreferencesAppSynchronize ngay sau
+        // mỗi lần ghi — file trên đĩa luôn là bản mới nhất.
+        NSDictionary *fromFile = [NSDictionary dictionaryWithContentsOfFile:OCPPreferencesPath()];
+        if ([fromFile isKindOfClass:[NSDictionary class]] && fromFile.count > 0) return fromFile;
 
+        // Chưa có file: domain có thể mới chỉ tồn tại trong cfprefsd.
+        CFStringRef domain = (__bridge CFStringRef)OCPPreferencesDomain;
         NSArray *keys = CFBridgingRelease(CFPreferencesCopyKeyList(
             domain, kCFPreferencesCurrentUser, kCFPreferencesAnyHost));
         if (keys.count > 0) {
@@ -62,13 +73,20 @@ NSDictionary<NSString *, id> *OCPPreferencesCopyRaw(void) {
                 kCFPreferencesCurrentUser, kCFPreferencesAnyHost));
             if ([values isKindOfClass:[NSDictionary class]] && values.count > 0) return values;
         }
-
-        NSDictionary *fromFile = [NSDictionary dictionaryWithContentsOfFile:OCPPreferencesPath()];
-        if ([fromFile isKindOfClass:[NSDictionary class]]) return fromFile;
     } @catch (NSException *exception) {
         // Đọc cấu hình không bao giờ được phép làm chết process gọi nó.
     }
     return @{};
+}
+
+NSString *OCPStartupStagePath(void) {
+    return [NSString stringWithFormat:@"/var/mobile/Library/Preferences/%@.stage",
+                                      OCPPreferencesDomain];
+}
+
+NSString *OCPBootstrapMarkerPath(void) {
+    return [NSString stringWithFormat:@"/var/mobile/Library/Preferences/%@.bootstrapping",
+                                      OCPPreferencesDomain];
 }
 
 NSString *OCPKillSwitchPath(void) {

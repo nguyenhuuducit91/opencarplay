@@ -39,6 +39,24 @@ FOUNDATION_EXPORT void OCPPrefsReset(void);
 /// Bundle chứa Root.plist và các plist con.
 FOUNDATION_EXPORT NSBundle *OCPPrefsBundle(void);
 
+/// Khoá giai đoạn khởi tạo.
+FOUNDATION_EXPORT NSString *const OCPPrefsStartupStageKey;
+
+/// Giai đoạn khởi tạo hiện tại (0–5).
+///
+/// KHÔNG nằm trong file plist chung. Constructor của tweak đọc giá trị này trên đường
+/// khởi động SpringBoard, nơi không được phép parse plist hay hỏi cfprefsd, nên nó nằm
+/// riêng trong một file văn bản thuần chứa đúng một số nguyên.
+FOUNDATION_EXPORT NSInteger OCPPrefsReadStartupStage(void);
+
+/// Ghi giai đoạn. Trả NO nếu không ghi được file (sandbox từ chối) — bên gọi phải nói
+/// thật với người dùng thay vì hiện một giá trị chưa hề được lưu.
+FOUNDATION_EXPORT BOOL OCPPrefsWriteStartupStage(NSInteger stage);
+
+/// Lần nạp trước có bắt đầu khởi tạo mà không bao giờ báo ổn định không.
+/// YES nghĩa là tweak đã tự hạ về giai đoạn 0 để máy lên được.
+FOUNDATION_EXPORT BOOL OCPPrefsBootstrapStalled(void);
+
 NS_ASSUME_NONNULL_END
 
 #endif /* OCP_PREFS_COMMON_H */
