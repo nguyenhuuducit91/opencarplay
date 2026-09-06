@@ -389,6 +389,37 @@ cảnh báo nếu nó dùng đường dẫn MobileSubstrate cũ. `postinst` tự
 với `PreferenceLoader.dylib` — phụ thuộc bắt buộc, nên vị trí của nó là mốc đáng tin cho
 biết ElleKit trên máy đó đọc ở đâu.
 
+## Metadata lớp Objective-C phải được ký (arm64e)
+
+`clang 13` của toolchain Linux **không** ký con trỏ trong metadata lớp Objective-C.
+Apple clang có `-fptrauth-objc-isa` / `-fptrauth-objc-class-ro`; clang này chỉ có
+`-fptrauth-calls`, `-returns`, `-intrinsics`, `-indirect-gotos`, `-auth-traps`, `-soft`.
+
+Hậu quả, đo trên máy thật bằng `opencarplay-selftest`:
+
+```
+dlopen(.../OpenCarPlay.dylib): EXC_BREAKPOINT
+libobjc  readClass()  <-  map_images  <-  dlopen_from
+```
+
+libobjc trên arm64e đọc `objc_class.isa` và `.superclass` qua trường có `__ptrauth`.
+Con trỏ chưa ký làm lệnh xác thực hỏng và sinh `brk` ngay trong `map_images`.
+
+Lược đồ, đọc trực tiếp từ Cephei — một tweak đang chạy được trên chính thiết bị đó, chứ
+không lấy từ tài liệu:
+
+| trường trong `objc_class` | ký |
+|---|---|
+| `+0` `isa` | key `DA`, diversity `0x6ae1`, addrDiv | 
+| `+8` `superclass` | key `DA`, diversity `0xb5ab`, addrDiv |
+| `+16` `cache`, `+32` `bits` | không ký |
+
+Hai giá trị đó khớp `ISA_SIGNING_DISCRIMINATOR` và discriminator superclass của objc4.
+`scripts/sign_objc_metadata.py` vá sau khi link và **phải chạy trước `ldid`**.
+
+Đây là chẩn đoán mà tác giả trước đã ghi trong `45d1482` và `3d144f4`. Nó **đúng**; các
+bản 0.31–0.38 bác bỏ nó là sai.
+
 ## arm64e phải có cờ CPU_SUBTYPE_PTRAUTH_ABI
 
 Tweak được nạp hay không phụ thuộc một bit trong `cpusubtype`:
