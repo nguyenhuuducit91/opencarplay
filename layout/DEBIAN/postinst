@@ -120,6 +120,20 @@ mkdir -p "$REPORT_DIR" 2>/dev/null || true
     done
     echo
 
+    echo "--- BANG CAI DAT (PreferenceLoader) ---"
+    PLDIR="$JBROOT/Library/PreferenceLoader/Preferences"
+    if [ -d "$PLDIR" ]; then
+        ls -la "$PLDIR" 2>/dev/null | sed 's/^/     /'
+        for f in "$PLDIR"/OpenCarPlay*.plist; do
+            [ -f "$f" ] || continue
+            echo "     -- $(basename "$f") ($(wc -c < "$f") byte)"
+            command -v plutil >/dev/null 2>&1 && plutil -lint "$f" 2>&1 | sed 's/^/        /'
+        done
+    else
+        echo "     KHONG CO $PLDIR - preferenceloader chua cai?"
+    fi
+    echo
+
     echo "--- dinh dang plist filter (nhi phan hay XML) ---"
     for f in "$JBROOT/usr/lib/TweakInject"/*.plist; do
         [ -f "$f" ] || continue
