@@ -149,6 +149,7 @@ after-stage::
 			/var/jb/usr/lib/libellekit.dylib \
 			$$dylib || exit 1; \
 		python3 scripts/mark_ptrauth_abi.py $$dylib || exit 1; \
+		python3 scripts/sign_objc_metadata.py $$dylib || exit 1; \
 		$(LDID) -S $$dylib || exit 1; \
 	done
 	@python3 scripts/stamp_version.py $(THEOS_STAGING_DIR)

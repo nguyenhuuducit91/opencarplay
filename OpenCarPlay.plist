@@ -6,9 +6,7 @@
 	<dict>
 		<key>Bundles</key>
 		<array>
-			<string>com.apple.springboard</string>
-			<string>com.apple.FrontBoard</string>
-			<string>com.apple.CarPlayApp</string>
+			<string>com.opencarplay.not-yet-verified</string>
 		</array>
 	</dict>
 </dict>
