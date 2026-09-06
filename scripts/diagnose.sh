@@ -93,6 +93,45 @@ for proc in SpringBoard CarPlay; do
 done
 
 hr
+echo "7b. FILE CỦA BẢNG CÀI ĐẶT"
+# Từ 0.35.0, bảng cài đặt là plist thuần và gói KHÔNG cài preference bundle nào.
+# Còn sót bundle của 0.31–0.34 nghĩa là dpkg chưa dọn, và Settings vẫn nạp binary cũ —
+# đúng thứ đang làm nó crash.
+PLDIR="$JBROOT/Library/PreferenceLoader/Preferences"
+if [ -d "$PLDIR" ]; then
+    for f in "$PLDIR"/OpenCarPlay*; do
+        [ -e "$f" ] && ok "mục PreferenceLoader: $f"
+    done
+else
+    no "không có $PLDIR — PreferenceLoader chưa cài?"
+fi
+
+STALE=0
+for d in "$JBROOT/Library/PreferenceBundles/OpenCarPlayPrefs.bundle" \
+         /Library/PreferenceBundles/OpenCarPlayPrefs.bundle; do
+    if [ -e "$d" ]; then
+        no "CÒN SÓT bundle cũ: $d"
+        no "  Từ 0.35.0 gói không cài thứ này nữa. Xoá rồi thử lại:"
+        no "    rm -rf $d"
+        STALE=1
+    fi
+done
+for f in "$PLDIR/OpenCarPlay.plist"; do
+    if [ -e "$f" ]; then
+        no "CÒN SÓT mục cũ trỏ tới bundle: $f"
+        no "    rm -f $f"
+        STALE=1
+    fi
+done
+[ "$STALE" = "0" ] && ok "không còn file thừa của các bản 0.31-0.34"
+
+if command -v dpkg >/dev/null 2>&1; then
+    info "file gói đang khai báo:"
+    dpkg -L "$PACKAGE_ID" 2>/dev/null | grep -i "preference" | sed 's/^/    /' \
+        || info "  (không có mục preference nào)"
+fi
+
+hr
 echo "8. LOG"
 info "trên máy build:  idevicesyslog | grep -i opencarplay"
 info "trên thiết bị :  $JBROOT/usr/bin/log stream --predicate 'subsystem == \"com.opencarplay.tweak\"'"

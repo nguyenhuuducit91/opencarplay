@@ -81,6 +81,35 @@ def read_plist(path: Path):
         return None, str(error)
 
 
+# Khoá mà Preferences.framework đọc bằng -isEqualToString: hoặc dùng thẳng như NSString.
+# Đưa số vào một trong số này thì Settings chết với
+#   -[__NSCFNumber isEqualToString:]: unrecognized selector
+# và không có gì trong plist gợi ý điều đó. Đây là lỗi đã làm bản 0.35.0 crash: khoá
+# autoCaps ghi là <integer>0</integer> thay vì <string>none</string>.
+STRING_ONLY_KEYS = {
+    "cell", "label", "footerText", "headerDetailText", "defaults", "key", "detail",
+    "action", "icon", "placeholder", "autoCaps", "autoCorrection", "keyboard",
+    "PostNotification", "id", "staticTextMessage", "cellClass", "pane",
+    "customControllerClass", "bundle", "alignment",
+}
+
+
+def check_specifier_types(label: str, items) -> list:
+    """Mọi khoá kiểu chuỗi phải thật sự là chuỗi."""
+    problems = []
+    for index, item in enumerate(items or []):
+        if not isinstance(item, dict):
+            continue
+        for key, value in item.items():
+            if key in STRING_ONLY_KEYS and not isinstance(value, str):
+                problems.append(
+                    f"{label}: items[{index}].{key} = {value!r} ({type(value).__name__}), "
+                    f"phải là chuỗi. Preferences so sánh khoá này bằng -isEqualToString:, "
+                    f"đưa số vào sẽ làm Settings chết với 'unrecognized selector sent to "
+                    f"instance'.")
+    return problems
+
+
 def collect_detail_classes(items) -> set:
     """Mọi tên lớp mà Root.plist yêu cầu Settings dựng."""
     classes = set()
@@ -135,6 +164,7 @@ def check_preference_bundle(bundle: Path, root: Path) -> list:
     items = data.get("items")
     if not items:
         problems.append(f"{name}/Root.plist: không có mục nào trong 'items'")
+    problems += check_specifier_types(f"{name}/Root.plist", items)
     for missing in sorted(collect_detail_classes(items) - declared):
         problems.append(f"{name}/Root.plist trỏ tới lớp {missing} nhưng binary không "
                         f"định nghĩa nó — chạm vào dòng đó Settings sẽ không mở được gì")
@@ -162,6 +192,8 @@ def check_inline_entry(path: Path, data: dict, entry: dict) -> list:
     if not items:
         problems.append(f"{path.name}: không có 'items' ở cấp cao nhất — bảng sẽ trống")
         return problems
+
+    problems += check_specifier_types(path.name, items)
 
     for index, item in enumerate(items):
         if not isinstance(item, dict):

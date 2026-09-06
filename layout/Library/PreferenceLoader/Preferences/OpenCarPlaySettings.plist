@@ -50,7 +50,9 @@ com.google.ios.youtube, com.spotify.client
 			<key>PostNotification</key>
 			<string>com.opencarplay.prefs-changed</string>
 			<key>autoCaps</key>
-			<integer>0</integer>
+			<string>none</string>
+			<key>autoCorrection</key>
+			<string>no</string>
 			<key>cell</key>
 			<string>PSEditTextCell</string>
 			<key>defaults</key>
@@ -59,8 +61,6 @@ com.google.ios.youtube, com.spotify.client
 			<string>AllowedApplications</string>
 			<key>label</key>
 			<string>Cho phép</string>
-			<key>noAutoCorrect</key>
-			<true/>
 			<key>placeholder</key>
 			<string>com.vi.du</string>
 		</dict>

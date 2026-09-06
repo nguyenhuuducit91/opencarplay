@@ -15,9 +15,20 @@ headers/
 # Unit test binary
 tests/test_ocp_util
 
-# Logs
+# Logs và bằng chứng lấy từ thiết bị
+#
+# scripts/collect_crash.sh đổ vào ocp-crash/. Riêng syslog đã ~28 MB một lần chạy, và
+# crash report chứa tên tiến trình, đường dẫn container, UUID máy — không thuộc về repo
+# công khai. Giữ lại trên máy để đọc, nhưng không commit.
 *.log
 logs/
+ocp-crash/
+*.ips
+*.ips.ca
+*.ips.synced
+*.crash
+*.panic
+syslog*.txt
 
 # Editor / OS
 .vscode/
