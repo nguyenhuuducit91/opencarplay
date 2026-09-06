@@ -60,9 +60,11 @@ Sileo → Sources → thêm URL trên → cài **OpenCarPlay** → respring.
 4. Respring — chỉ cần khi thay đổi ảnh hưởng SpringBoard; thay đổi phía dashboard chỉ cần
    `killall -9 CarPlay`
 5. Respring, rồi mở **Cài đặt → OpenCarPlay**
-6. **Giai đoạn khởi tạo** mặc định là **0** — dylib được nạp nhưng không chạm gì vào hệ
-   thống. Nâng từng bậc một, respring sau mỗi bậc (xem cảnh báo bên dưới)
-7. Bật công tắc chính, rồi **Chọn ứng dụng**
+6. Bật công tắc chính, nhập bundle identifier vào ô **Cho phép**
+7. **Giai đoạn khởi tạo** mặc định là **0** — dylib được nạp nhưng không chạm gì vào hệ
+   thống. Đặt bằng file (bảng cài đặt không có mã chạy nên không đổi được tại đó):
+   `echo 1 > /var/mobile/Library/Preferences/com.opencarplay.stage`, rồi respring.
+   Nâng từng bậc một (xem cảnh báo bên dưới)
 8. Cắm CarPlay
 
 > **Giai đoạn 1–5 chưa được kiểm chứng trên iOS 18.6 và đã từng làm treo máy.** Chỉ giai
@@ -248,10 +250,25 @@ trên iOS 18.6.2 hay không, thay vì đoán.
 
 ### Cấu hình
 
-Dùng **Cài đặt → OpenCarPlay**. Bảng gồm: nhóm trạng thái (phiên bản, lần cuối tweak nạp
-được vào SpringBoard, số ứng dụng đã chọn), công tắc chính, trình chọn ứng dụng liệt kê app
-đã cài trên máy, các tuỳ chọn hiển thị, hai cổng thử nghiệm, nhóm nhật ký, nút respring và
-nút đặt lại.
+Dùng **Cài đặt → OpenCarPlay**.
+
+**Bảng cài đặt không chứa mã thực thi.** Nó là một file plist trong
+`/var/jb/Library/PreferenceLoader/Preferences/`, do PreferenceLoader tự dựng bằng
+`PLCustomListController` của nó. Gói không cài preference bundle nào, nên Settings không
+`dlopen` gì của OpenCarPlay và bảng này không thể làm Settings crash.
+
+Lý do: bốn bản liên tiếp (0.31–0.34) đóng gói một bundle có lớp khai báo lúc biên dịch kế
+thừa `PSListController`, và cả bốn đều làm Settings crash khi mở bảng. Bản 0.34 sạch theo
+mọi phép đo tĩnh — không block, không phụ thuộc ivar ngoài, initializer dạng offset,
+relative method list, mọi symbol đều bind được — mà vẫn crash. Tức lỗi nằm ở khâu *nạp*
+binary. Mã nguồn vẫn ở `Preferences/` để dựng lại khi có Xcode trên macOS hoặc khi lấy
+được crash log.
+
+Đánh đổi: không có nhóm trạng thái động, không có trình chọn ứng dụng dạng danh sách, và
+**giai đoạn khởi tạo phải đặt bằng file** — xem footer trong bảng.
+
+Danh sách ứng dụng nhập bằng ô văn bản, các bundle identifier cách nhau bằng dấu phẩy.
+Tweak chấp nhận cả mảng (khi sửa file bằng Filza) lẫn chuỗi.
 
 Bảng cài đặt ghi qua `CFPreferences` rồi `CFPreferencesAppSynchronize` và bắn Darwin
 notification `com.opencarplay.prefs-changed`, nên thay đổi có hiệu lực ngay mà không cần

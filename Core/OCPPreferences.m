@@ -97,13 +97,30 @@ NSString *const OCPPreferencesDidChangeNotification = @"OCPPreferencesDidChangeN
     return [self boolForKey:@"ExperimentalSceneHosting" defaultValue:NO];
 }
 
+/// Chấp nhận cả mảng lẫn chuỗi.
+///
+/// Mảng là dạng gốc, dùng khi sửa file bằng Filza. Chuỗi ngăn cách bằng dấu phẩy là
+/// dạng mà bảng cài đặt ghi ra: bảng không có mã thực thi (xem README), nên ô nhập chỉ
+/// lưu được một chuỗi. Chấp nhận cả hai là việc của bên đọc, không phải của người dùng.
 - (NSArray<NSString *> *)allowedApplications {
     id value = self.cache[@"AllowedApplications"];
-    if (![value isKindOfClass:[NSArray class]]) return @[];
+
+    NSArray *entries = nil;
+    if ([value isKindOfClass:[NSArray class]]) {
+        entries = (NSArray *)value;
+    } else if ([value isKindOfClass:[NSString class]]) {
+        NSCharacterSet *separators = [NSCharacterSet characterSetWithCharactersInString:@",;\n\r\t "];
+        entries = [(NSString *)value componentsSeparatedByCharactersInSet:separators];
+    } else {
+        return @[];
+    }
 
     NSMutableArray<NSString *> *result = [NSMutableArray array];
-    for (id entry in (NSArray *)value) {
-        if ([entry isKindOfClass:[NSString class]]) [result addObject:entry];
+    NSCharacterSet *whitespace = [NSCharacterSet whitespaceAndNewlineCharacterSet];
+    for (id entry in entries) {
+        if (![entry isKindOfClass:[NSString class]]) continue;
+        NSString *trimmed = [(NSString *)entry stringByTrimmingCharactersInSet:whitespace];
+        if (trimmed.length > 0 && ![result containsObject:trimmed]) [result addObject:trimmed];
     }
     return result;
 }

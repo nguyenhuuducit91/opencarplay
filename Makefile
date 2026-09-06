@@ -58,21 +58,24 @@ OpenCarPlay_LDFLAGS += -Wl,-rpath,/Library/Frameworks
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
-# Preference bundle — bảng cài đặt trong Settings.
+# Preference bundle KHÔNG được đóng gói.
 #
-# Bật lại ở 0.31.0 sau khi đo lại Mach-O bằng hằng số ĐÚNG. Các bản 0.17–0.30 loại nó
-# ra dựa trên hai phép đo sai trong scripts/:
+# Bảng cài đặt là một file plist thuần trong layout/Library/PreferenceLoader/Preferences/,
+# PreferenceLoader tự dựng bằng PLCustomListController của nó. Không có binary nào của ta
+# được Settings nạp, nên Settings không thể chết vì ta.
 #
-#   • LC_DYLD_CHAINED_FIXUPS bị ghi là 0x80000033 — đó là LC_DYLD_EXPORTS_TRIE.
-#     Script đọc export trie rồi kết luận "chained fixups rỗng". Đo lại: binary của
-#     bundle có 944 byte chained fixups, pointer_format ARM64E, y hệt dylib này.
-#   • Số lệnh PAC đếm bằng objdump của Linux, mà objdump không đọc được Mach-O
-#     ("file format not recognized") nên luôn trả về 0. Đếm lại bằng cách quét opcode:
-#     __auth_stubs của dylib này có 82 lệnh braa. Tức là binary vẫn theo đúng ABI
-#     arm64e — dyld ký con trỏ trong __auth_got, auth stub xác thực lại. Không có
-#     mâu thuẫn nào cần né.
-SUBPROJECTS += Preferences
-include $(THEOS_MAKE_PATH)/aggregate.mk
+# VÌ SAO: bốn bản liên tiếp (0.31–0.34) đóng gói một bundle có lớp khai báo lúc biên dịch
+# kế thừa PSListController, và cả bốn đều làm Settings crash khi mở bảng. Bản 0.34 sạch
+# theo mọi phép đo tĩnh có được — không block, không phụ thuộc ivar ngoài, initializer
+# dạng offset, relative method list, mọi symbol đều bind được — mà vẫn crash. Tức lỗi nằm
+# ở khâu NẠP binary, không nằm trong logic của ta, và không có thiết bị thì không đo tiếp
+# được. Cấu hình duy nhất từng nạp được (commit 1dc27ee) là bundle không khai báo lớp nào.
+#
+# Mã nguồn trong Preferences/ được giữ lại để dựng lại khi có Xcode trên macOS, hoặc khi
+# lấy được crash log để biết chính xác nó chết ở đâu. Dựng riêng:  cd Preferences && make
+#
+# SUBPROJECTS += Preferences
+# include $(THEOS_MAKE_PATH)/aggregate.mk
 
 # Sau khi stage: đổi phụ thuộc CydiaSubstrate sang đường dẫn tuyệt đối, rồi chuẩn hoá
 # quyền (umask của máy build — thường 002 — để lại bit group-write, không phù hợp cho

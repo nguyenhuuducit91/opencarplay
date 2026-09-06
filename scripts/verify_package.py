@@ -142,14 +142,57 @@ def check_preference_bundle(bundle: Path, root: Path) -> list:
     return problems
 
 
+def check_inline_entry(path: Path, data: dict, entry: dict) -> list:
+    """Mục PreferenceLoader không có bundle — trang nằm ngay trong file này.
+
+    PreferenceLoader dựng trang bằng PLCustomListController của nó. Không có binary nào
+    được nạp, nên bảng không thể làm Settings crash — nhưng bù lại nó phụ thuộc vào một
+    quy tắc dễ vi phạm mà không có thông báo lỗi nào, kiểm ở đây.
+    """
+    problems = []
+    title = path.stem
+
+    if entry.get("label") == title:
+        problems.append(
+            f"{path.name}: entry.label trùng tên file ('{title}'). PreferenceLoader chỉ đặt "
+            f"pl_alt_plist_name khi hai giá trị này KHÁC nhau, và chính khoá đó khiến nó đi "
+            f"nạp trang. Trùng tên thì bảng hiện ra TRỐNG. Đổi tên file hoặc đổi label.")
+
+    items = data.get("items")
+    if not items:
+        problems.append(f"{path.name}: không có 'items' ở cấp cao nhất — bảng sẽ trống")
+        return problems
+
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            problems.append(f"{path.name}: items[{index}] không phải dictionary")
+            continue
+        if item.get("detail"):
+            problems.append(
+                f"{path.name}: items[{index}] khai báo detail = {item['detail']}, nhưng gói "
+                f"không có binary nào định nghĩa lớp đó — chạm vào dòng đó sẽ không mở "
+                f"được gì")
+        if item.get("action"):
+            problems.append(
+                f"{path.name}: items[{index}] khai báo action = {item['action']}, nhưng "
+                f"không có mã nào chạy để nhận. Nút sẽ không làm gì.")
+        if "key" in item and not item.get("defaults"):
+            problems.append(f"{path.name}: items[{index}] có 'key' nhưng thiếu 'defaults' — "
+                            f"giá trị sẽ không được lưu ở đâu cả")
+
+    icon = entry.get("icon")
+    if icon and not (path.parent / icon).exists():
+        problems.append(f"{path.name}: icon '{icon}' không có cạnh file này")
+    return problems
+
+
 def check_preference_loader_entries(root: Path, bundles: list) -> list:
     problems = []
     entries = list(root.rglob("Library/PreferenceLoader/Preferences/*.plist"))
 
-    if bundles and not entries:
-        return ["có preference bundle nhưng thiếu mục trong "
-                "Library/PreferenceLoader/Preferences — Settings sẽ không hiện gì. "
-                "Đây chính là lý do 'không thấy OpenCarPlay trong Cài đặt'."]
+    if not entries:
+        return ["gói không có mục nào trong Library/PreferenceLoader/Preferences — "
+                "sẽ không có OpenCarPlay trong Cài đặt"]
 
     for path in entries:
         data, error = read_plist(path)
@@ -166,6 +209,7 @@ def check_preference_loader_entries(root: Path, bundles: list) -> list:
 
         bundle_name = entry.get("bundle")
         if not bundle_name:
+            problems += check_inline_entry(path, data, entry)
             continue
 
         target = next((b for b in bundles if b.name == f"{bundle_name}.bundle"), None)
@@ -240,9 +284,6 @@ def check_package(deb: str) -> list:
         problems += check_preference_loader_entries(root, bundles)
         problems += check_tweak_layout(root)
 
-        if not bundles:
-            problems.append("gói không chứa preference bundle nào — sẽ không có mục "
-                            "OpenCarPlay trong Cài đặt")
     return problems
 
 
