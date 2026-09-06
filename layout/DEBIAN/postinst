@@ -131,15 +131,19 @@ mkdir -p "$REPORT_DIR" 2>/dev/null || true
     done
     echo
 
-    echo "--- trust cache ---"
+    echo "--- jbctl ---"
+    # KHONG goi "trustcache add <duong dan>": jbctl nhan cdhash chu khong nhan path, va
+    # bao "passed cdhash has wrong length" — do goi sai, khong phai loi cua binary.
+    # Doc usage truoc da.
     TC_FOUND=""
     for t in "$JBROOT/basebin/jbctl" "$JBROOT/usr/bin/jbctl"; do
         [ -x "$t" ] && TC_FOUND="$t" && break
     done
     if [ -n "$TC_FOUND" ]; then
         echo "     cong cu: $TC_FOUND"
-        "$TC_FOUND" trustcache add "$JBROOT/usr/lib/TweakInject/OpenCarPlay.dylib" 2>&1 \
-            | sed 's/^/     /' || echo "     (lenh tra ve loi)"
+        "$TC_FOUND" 2>&1 | head -30 | sed 's/^/     /'
+        echo "     -- trustcache --"
+        "$TC_FOUND" trustcache 2>&1 | head -20 | sed 's/^/     /'
     else
         echo "     khong tim thay jbctl"
     fi
@@ -155,6 +159,27 @@ mkdir -p "$REPORT_DIR" 2>/dev/null || true
 } > "$REPORT" 2>&1
 chmod 644 "$REPORT" 2>/dev/null || true
 chown mobile "$REPORT" 2>/dev/null || true
+
+# --- LAY MAU DOI CHIEU ---------------------------------------------------------
+#
+# Chep mot tweak ĐANG CHAY DUOC ra vung AFC de so sanh cau truc Mach-O voi cua ta.
+# Cephei duoc ElleKit nap vao SpringBoard (thay trong syslog), nen no la mau chuan
+# dung nhat co the co: cung thu muc, cung injector, cung thiet bi.
+#
+# Chi chep phan doc duoc; khong sua gi cua goi khac.
+for SRC in "$JBROOT/Library/Frameworks/Cephei.framework/Cephei" \
+           "$JBROOT/usr/lib/TweakInject/PreferenceLoader.dylib"; do
+    [ -f "$SRC" ] || continue
+    DST="$REPORT_DIR/ref-$(basename "$SRC")"
+    cp "$SRC" "$DST" 2>/dev/null && chmod 644 "$DST" 2>/dev/null
+done
+for SRC in "$JBROOT/usr/lib/TweakInject/CepheiSpringBoard.plist" \
+           "$JBROOT/usr/lib/TweakInject/PreferenceLoader.plist"; do
+    [ -f "$SRC" ] || continue
+    cp "$SRC" "$REPORT_DIR/ref-$(basename "$SRC")" 2>/dev/null
+    chmod 644 "$REPORT_DIR/ref-$(basename "$SRC")" 2>/dev/null
+done
+chown mobile "$REPORT_DIR"/ref-* 2>/dev/null || true
 
 echo "OpenCarPlay: da ghi bao cao cai dat vao $REPORT"
 echo "  Doc tu may tinh: afcclient get /OpenCarPlay/install-report.txt report.txt"
