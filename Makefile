@@ -113,21 +113,29 @@ include $(THEOS_MAKE_PATH)/tool.mk
 # @loader_path/.jbroot/Library/Frameworks), nên @rpath vốn đã resolve được. Đổi sang
 # đường tuyệt đối chỉ để bớt một biến số. Sửa Mach-O làm hỏng chữ ký nên phải ký lại.
 #
-# Phụ thuộc này PHẢI là weak. Bản 0.31.0 bỏ bước làm weak với lý do "Theos có sinh
-# LC_RPATH nên @rpath vẫn resolve được" — và làm treo máy người dùng.
+# Phụ thuộc runtime hook: trỏ thẳng vào libellekit.dylib.
 #
-# Lý lẽ đó trả lời sai câu hỏi. @rpath có resolve được hay không là chuyện thứ yếu;
-# chuyện chính là FILE ĐÓ CÓ TỒN TẠI TRÊN MÁY hay không. ElleKit không phải bản cài nào
-# cũng đặt CydiaSubstrate.framework ở /var/jb/Library/Frameworks. Khi một phụ thuộc BẮT
-# BUỘC không resolve được, dyld giết luôn process đang nạp — SpringBoard chết trước cả
-# khi constructor chạy, nên kill switch trong code lẫn kill switch qua cáp USB đều vô
-# dụng. Máy chỉ còn đường Safe Mode.
+# dyld nói ra nguyên nhân, sau khi opencarplay-selftest gọi dlopen trên máy thật:
 #
-# Với weak, dyld để symbol bằng NULL và process vẫn sống. Rủi ro "Logos gọi thẳng vào
-# NULL" được chặn bằng OCPHookingRuntimeAvailable() trong Tweak/CarPlayApp/Hooks.xm:
-# kiểm tra dlsym trước mọi %init. Tweak mất khả năng hook, máy vẫn dùng được — đó là
-# đánh đổi đúng.
-
+#     dlopen(.../OpenCarPlay.dylib): unknown library ordinal 8
+#     when binding '_MSHookMessageEx'
+#
+# Ordinal 8 là CydiaSubstrate. Framework đó KHÔNG có trên máy dùng ElleKit, nên
+# dyld không có image nào cho ordinal đó và bỏ cả dylib. Injector nhận NULL rồi bỏ
+# qua trong im lặng — không lỗi, không log. Đó là lý do tweak chưa từng được nạp.
+#
+# weaken_substrate.py (bản 0.24-0.47) không chữa được: nó đổi LC_LOAD_DYLIB thành
+# LC_LOAD_WEAK_DYLIB, tức nói "thư viện có thể vắng mặt", nhưng các SYMBOL vẫn là
+# strong import vì linker đã sinh xong bảng import trước đó. Weak library + strong
+# symbol là tổ hợp hỏng: dyld vẫn bắt buộc phải bind, mà không có image để bind.
+# Muốn weak cho đúng thì phải liên kết bằng -weak_library ngay lúc link, chứ không
+# sửa được sau.
+#
+# libellekit.dylib có thật trên máy (thấy trong crash report và trong log), và gói đã
+# khai báo Depends: ellekit. Nó xuất MSHookMessageEx/MSHookFunction để tương thích
+# Substrate. Trỏ thẳng vào đó là bỏ được cả phụ thuộc không tồn tại lẫn trò weak.
+#
+# Sửa Mach-O làm hỏng chữ ký nên phải ký lại — ldid chạy SAU CÙNG.
 # ldid không nằm trong PATH mặc định của make (shell không nạp profile của người dùng).
 LDID ?= $(firstword $(wildcard $(HOME)/.local/bin/ldid) \
                     $(wildcard $(THEOS)/toolchain/linux/iphone/bin/ldid) \
@@ -135,12 +143,11 @@ LDID ?= $(firstword $(wildcard $(HOME)/.local/bin/ldid) \
 
 after-stage::
 	@for dylib in `find $(THEOS_STAGING_DIR) -name '*.dylib' -o -path '*/usr/bin/opencarplay-selftest'`; do \
-		echo "  sửa phụ thuộc CydiaSubstrate: $$dylib"; \
+		echo "  trỏ phụ thuộc hook sang libellekit: $$dylib"; \
 		$(THEOS)/toolchain/linux/iphone/bin/install_name_tool -change \
 			@rpath/CydiaSubstrate.framework/CydiaSubstrate \
-			/var/jb/Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate \
+			/var/jb/usr/lib/libellekit.dylib \
 			$$dylib || exit 1; \
-		python3 scripts/weaken_substrate.py $$dylib || exit 1; \
 		python3 scripts/mark_ptrauth_abi.py $$dylib || exit 1; \
 		$(LDID) -S $$dylib || exit 1; \
 	done

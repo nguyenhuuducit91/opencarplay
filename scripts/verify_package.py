@@ -54,19 +54,26 @@ def check_macho(path: Path, relative: str) -> list:
                     f"Binary bị sửa sau khi ký — kiểm tra thứ tự các bước trong after-stage; "
                     f"ldid phải chạy SAU cùng.")
 
+        # Phụ thuộc runtime hook. dyld trên máy người dùng đã chỉ ra đúng lỗi ở đây:
+        #     unknown library ordinal 8 ... when binding '_MSHookMessageEx'
         for name, weak in image.dylibs:
             if "Substrate" not in name and "ellekit" not in name:
                 continue
-            if not weak:
+            if "CydiaSubstrate" in name:
                 problems.append(
-                    f"{relative}: phụ thuộc {name} ở dạng BẮT BUỘC. Nếu file đó không có "
-                    f"trên máy người dùng, dyld GIẾT process đang nạp — SpringBoard chết "
-                    f"trước khi constructor chạy, nên mọi kill switch đều vô dụng và máy "
-                    f"chỉ còn đường Safe Mode. Đây chính là lỗi của bản 0.31.0. "
-                    f"Chạy scripts/weaken_substrate.py rồi ký lại.")
-            if name.startswith("@rpath/") and not image.rpaths:
-                problems.append(f"{relative}: {name} qua @rpath nhưng binary không có "
-                                f"LC_RPATH nào")
+                    f"{relative}: còn phụ thuộc {name}. CydiaSubstrate.framework không có "
+                    f"trên máy dùng ElleKit, và dyld bỏ cả dylib với 'unknown library "
+                    f"ordinal ... when binding _MSHookMessageEx'. Trỏ sang "
+                    f"/var/jb/usr/lib/libellekit.dylib.")
+            if weak:
+                problems.append(
+                    f"{relative}: {name} ở dạng WEAK. Đổi load command sang weak SAU khi "
+                    f"link không làm các symbol thành weak import — dyld vẫn bắt buộc "
+                    f"phải bind và bỏ cả dylib khi thiếu thư viện. Muốn weak thì phải "
+                    f"dùng -weak_library lúc link.")
+            if name.startswith("@rpath/"):
+                problems.append(f"{relative}: {name} còn qua @rpath — dùng đường dẫn "
+                                f"tuyệt đối để bớt một biến số")
 
         # Block trên arm64e: trường `invoke` khai báo
         # __ptrauth(key_function_pointer, true, 0xc0bb) và bên GỌI (libdispatch, UIKit)
