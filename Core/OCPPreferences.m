@@ -9,6 +9,9 @@
 
 NSString *const OCPPreferencesDidChangeNotification = @"OCPPreferencesDidChangeNotification";
 
+/// Tiền tố khoá của một ứng dụng được phép: App-com.vi.du
+NSString *const OCPAllowedApplicationKeyPrefix = @"App-";
+
 @interface OCPPreferences ()
 @property (nonatomic, copy) NSDictionary<NSString *, id> *cache;
 @property (nonatomic, assign) BOOL hasStoredConfiguration;
@@ -97,31 +100,46 @@ NSString *const OCPPreferencesDidChangeNotification = @"OCPPreferencesDidChangeN
     return [self boolForKey:@"ExperimentalSceneHosting" defaultValue:NO];
 }
 
-/// Chấp nhận cả mảng lẫn chuỗi.
+/// Danh sách ứng dụng được phép, gộp từ hai nguồn.
 ///
-/// Mảng là dạng gốc, dùng khi sửa file bằng Filza. Chuỗi ngăn cách bằng dấu phẩy là
-/// dạng mà bảng cài đặt ghi ra: bảng không có mã thực thi (xem README), nên ô nhập chỉ
-/// lưu được một chuỗi. Chấp nhận cả hai là việc của bên đọc, không phải của người dùng.
+/// 1. Khoá `App-<bundle id>` = YES — dạng mà bảng cài đặt ghi. Mỗi ứng dụng một công
+///    tắc riêng, vì bảng không có mã thực thi nên không thể tự dựng một mảng.
+/// 2. Khoá `AllowedApplications` — dạng cũ, mảng hoặc chuỗi ngăn cách bằng dấu phẩy.
+///    Giữ lại để cấu hình sửa tay bằng Filza vẫn dùng được.
 - (NSArray<NSString *> *)allowedApplications {
-    id value = self.cache[@"AllowedApplications"];
-
-    NSArray *entries = nil;
-    if ([value isKindOfClass:[NSArray class]]) {
-        entries = (NSArray *)value;
-    } else if ([value isKindOfClass:[NSString class]]) {
-        NSCharacterSet *separators = [NSCharacterSet characterSetWithCharactersInString:@",;\n\r\t "];
-        entries = [(NSString *)value componentsSeparatedByCharactersInSet:separators];
-    } else {
-        return @[];
-    }
-
     NSMutableArray<NSString *> *result = [NSMutableArray array];
     NSCharacterSet *whitespace = [NSCharacterSet whitespaceAndNewlineCharacterSet];
+
+    for (NSString *key in self.cache) {
+        if (![key isKindOfClass:[NSString class]]) continue;
+        if (![key hasPrefix:OCPAllowedApplicationKeyPrefix]) continue;
+
+        id enabled = self.cache[key];
+        if (![enabled respondsToSelector:@selector(boolValue)] || ![enabled boolValue]) continue;
+
+        NSString *identifier =
+            [[key substringFromIndex:OCPAllowedApplicationKeyPrefix.length]
+                stringByTrimmingCharactersInSet:whitespace];
+        if (identifier.length > 0 && ![result containsObject:identifier]) {
+            [result addObject:identifier];
+        }
+    }
+
+    id legacy = self.cache[@"AllowedApplications"];
+    NSArray *entries = nil;
+    if ([legacy isKindOfClass:[NSArray class]]) {
+        entries = (NSArray *)legacy;
+    } else if ([legacy isKindOfClass:[NSString class]]) {
+        NSCharacterSet *separators =
+            [NSCharacterSet characterSetWithCharactersInString:@",;\n\r\t "];
+        entries = [(NSString *)legacy componentsSeparatedByCharactersInSet:separators];
+    }
     for (id entry in entries) {
         if (![entry isKindOfClass:[NSString class]]) continue;
         NSString *trimmed = [(NSString *)entry stringByTrimmingCharactersInSet:whitespace];
         if (trimmed.length > 0 && ![result containsObject:trimmed]) [result addObject:trimmed];
     }
+
     return result;
 }
 

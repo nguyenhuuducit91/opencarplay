@@ -194,6 +194,7 @@ def check_inline_entry(path: Path, data: dict, entry: dict) -> list:
         return problems
 
     problems += check_specifier_types(path.name, items)
+    problems += check_subpage_links(path, items, path.parent)
 
     for index, item in enumerate(items):
         if not isinstance(item, dict):
@@ -218,9 +219,50 @@ def check_inline_entry(path: Path, data: dict, entry: dict) -> list:
     return problems
 
 
+def check_subpage_links(path: Path, items, directory: Path) -> list:
+    """Mọi PSLinkCell dùng pl_alt_plist_name phải trỏ tới một file có thật.
+
+    Trang con nạp theo TÊN từ cùng thư mục. Sai tên thì PreferenceLoader hiện
+    "There appears to be an error with these preferences" — không có gì trong plist
+    gợi ý nguyên nhân.
+    """
+    problems = []
+    for index, item in enumerate(items or []):
+        if not isinstance(item, dict) or item.get("cell") != "PSLinkCell":
+            continue
+        name = item.get("pl_alt_plist_name")
+        if not name:
+            if not item.get("detail") and not item.get("bundle"):
+                problems.append(f"{path.name}: items[{index}] là PSLinkCell nhưng không có "
+                                f"pl_alt_plist_name, detail hay bundle — chạm vào sẽ không "
+                                f"mở được gì")
+            continue
+
+        target = directory / f"{name}.plist"
+        if not target.exists():
+            problems.append(f"{path.name}: items[{index}] trỏ tới trang con '{name}' nhưng "
+                            f"không có {target.name} cạnh nó")
+            continue
+
+        data, error = read_plist(target)
+        if data is None:
+            problems.append(f"{target.name}: {error}")
+            continue
+        if "entry" in data:
+            problems.append(f"{target.name}: trang con KHÔNG được có khoá 'entry' — có nó "
+                            f"thì PreferenceLoader tạo thêm một dòng thừa ở gốc Cài đặt")
+        if not data.get("items"):
+            problems.append(f"{target.name}: không có 'items' — trang con sẽ trống")
+        problems += check_specifier_types(target.name, data.get("items"))
+    return problems
+
+
 def check_preference_loader_entries(root: Path, bundles: list) -> list:
     problems = []
     entries = list(root.rglob("Library/PreferenceLoader/Preferences/*.plist"))
+    # Trang con không có 'entry'; chúng được kiểm qua liên kết từ trang chính.
+    entries = [p for p in entries
+               if isinstance(read_plist(p)[0], dict) and "entry" in read_plist(p)[0]]
 
     if not entries:
         return ["gói không có mục nào trong Library/PreferenceLoader/Preferences — "

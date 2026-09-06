@@ -119,6 +119,7 @@ after-stage::
 	@find $(THEOS_STAGING_DIR) -type d -exec chmod 755 {} +
 	@find $(THEOS_STAGING_DIR) -type f -exec chmod 644 {} +
 	@find $(THEOS_STAGING_DIR) -name '*.dylib' -exec chmod 755 {} +
+	@find $(THEOS_STAGING_DIR)/usr/bin -type f -exec chmod 755 {} + 2>/dev/null || true
 	@find $(THEOS_STAGING_DIR) -path '*.bundle/*' -type f ! -name '*.plist' ! -name '*.png' \
 		-exec chmod 755 {} +
 	@[ -d $(THEOS_STAGING_DIR)/DEBIAN ] && chmod 755 $(THEOS_STAGING_DIR)/DEBIAN/post* || true

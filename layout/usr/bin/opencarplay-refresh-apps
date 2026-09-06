@@ -1,0 +1,152 @@
+#!/bin/sh
+# OpenCarPlay — sinh trang "Chọn ứng dụng" cho bảng cài đặt.
+#
+#     opencarplay-refresh-apps
+#
+# Chạy lại sau khi cài hoặc gỡ ứng dụng. postinst tự gọi khi cài OpenCarPlay.
+#
+# VÌ SAO LÀ SHELL SCRIPT CHỨ KHÔNG PHẢI MÃ TRONG BẢNG CÀI ĐẶT
+#
+# Bảng cài đặt cố ý không chứa mã thực thi: mọi bản có binary đều làm Settings chết với
+# EXC_BAD_ACCESS "possible pointer authentication failure" (xem README, mục giới hạn
+# toolchain). Danh sách ứng dụng vì thế phải được sinh từ BÊN NGOÀI Settings, thành một
+# file plist tĩnh mà PreferenceLoader chỉ việc đọc.
+#
+# Mỗi ứng dụng là một công tắc với khoá riêng: App-<bundle id>. Tweak đọc mọi khoá có
+# tiền tố App- và bật.
+
+set -e
+
+# OCP_JBROOT và OCP_APP_ROOT chỉ để chạy thử trên máy build; trên thiết bị bỏ trống.
+JBROOT="${OCP_JBROOT-}"
+if [ -z "${OCP_JBROOT+set}" ]; then
+    JBROOT=""
+    for candidate in /var/jb /var/containers/Bundle/Application/.jbroot-* ""; do
+        [ -n "$candidate" ] && [ -d "$candidate/usr/lib" ] && JBROOT="$candidate" && break
+    done
+fi
+
+DEST="$JBROOT/Library/PreferenceLoader/Preferences/OpenCarPlayApps.plist"
+TMP="$DEST.new"
+
+# --- đọc một khoá từ Info.plist -------------------------------------------------
+# Info.plist của ứng dụng là plist nhị phân. Thử lần lượt các công cụ có thể có mặt;
+# không có cái nào thì trả về rỗng và bên gọi tự xoay xở.
+plist_get() {
+    _file="$1"; _key="$2"
+    # Đường 3 là plist XML đọc thẳng: một số ứng dụng vẫn để Info.plist ở dạng XML, và
+    # nó cũng là đường duy nhất chạy được khi máy không có công cụ plist nào.
+    if command -v plutil >/dev/null 2>&1; then
+        plutil -p "$_file" 2>/dev/null \
+            | sed -n "s/.*\"$_key\"[[:space:]]*=>[[:space:]]*\"\{0,1\}\([^\"]*\)\"\{0,1\}.*/\1/p" \
+            | head -1
+    elif command -v plistutil >/dev/null 2>&1; then
+        plistutil -i "$_file" -o - 2>/dev/null \
+            | sed -n "/<key>$_key<\/key>/{n;s/.*<string>\(.*\)<\/string>.*/\1/p;}" \
+            | head -1
+    else
+        # Khoá và giá trị nằm CÙNG dòng...
+        _v=$(sed -n "s|.*<key>$_key</key>[[:space:]]*<string>\\([^<]*\\)</string>.*|\\1|p" \
+                "$_file" 2>/dev/null | head -1)
+        # ...hoặc giá trị ở dòng kế tiếp.
+        [ -n "$_v" ] || _v=$(sed -n "/<key>$_key<\\/key>/{n;s|.*<string>\\([^<]*\\)</string>.*|\\1|p;}" \
+                "$_file" 2>/dev/null | head -1)
+        printf '%s' "$_v"
+    fi
+}
+
+# Thoát ký tự đặc biệt của XML. Tên ứng dụng có thể chứa & hoặc <.
+xml_escape() {
+    sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
+}
+
+# --- liệt kê ứng dụng ------------------------------------------------------------
+# Mỗi dòng: <bundle id><TAB><tên hiển thị>
+APP_ROOT="${OCP_APP_ROOT:-/var/containers/Bundle/Application}"
+
+list_apps() {
+    for app in "$APP_ROOT"/*/*.app; do
+        [ -d "$app" ] || continue
+        info="$app/Info.plist"
+        [ -f "$info" ] || continue
+
+        id=$(plist_get "$info" CFBundleIdentifier)
+        [ -n "$id" ] || continue
+
+        name=$(plist_get "$info" CFBundleDisplayName)
+        [ -n "$name" ] || name=$(plist_get "$info" CFBundleName)
+        # Không đọc được tên thì lấy tên thư mục .app — vẫn hơn là bỏ qua ứng dụng.
+        [ -n "$name" ] || name=$(basename "$app" .app)
+
+        printf '%s\t%s\n' "$id" "$name"
+    done
+}
+
+# --- sinh plist -------------------------------------------------------------------
+mkdir -p "$(dirname "$DEST")"
+
+# KHÔNG có khoá "entry": PreferenceLoader chỉ tạo một dòng ở gốc Cài đặt cho file CÓ
+# khoá đó. Thiếu nó thì file vô hình với trình quét nhưng vẫn nạp được theo tên qua
+# pl_alt_plist_name — đúng thứ ta cần cho một trang con.
+{
+    echo '<?xml version="1.0" encoding="UTF-8"?>'
+    echo '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">'
+    echo '<plist version="1.0"><dict><key>title</key><string>Ứng dụng</string>'
+    echo '<key>items</key><array>'
+} > "$TMP"
+
+COUNT=0
+APPS=$(list_apps | sort -t'	' -k2 -f)
+
+if [ -z "$APPS" ]; then
+    cat >> "$TMP" <<'EMPTY'
+<dict><key>cell</key><string>PSGroupCell</string>
+<key>footerText</key><string>Không đọc được danh sách ứng dụng.
+
+Cần plutil hoặc plistutil để đọc Info.plist của ứng dụng. Cài một trong hai rồi chạy lại:
+
+  opencarplay-refresh-apps</string></dict>
+EMPTY
+else
+    {
+        echo '<dict><key>cell</key><string>PSGroupCell</string>'
+        echo '<key>footerText</key><string>Bật ứng dụng bạn muốn dùng trên màn hình xe.'
+        echo ''
+        echo 'Danh sách này được quét lúc cài OpenCarPlay. Sau khi cài thêm ứng dụng mới, chạy lại trong Terminal hoặc qua SSH:'
+        echo ''
+        echo '  opencarplay-refresh-apps</string></dict>'
+    } >> "$TMP"
+
+    echo "$APPS" | while IFS='	' read -r id name; do
+        [ -n "$id" ] || continue
+        esc_name=$(printf '%s' "$name" | xml_escape)
+        esc_id=$(printf '%s' "$id" | xml_escape)
+        cat >> "$TMP" <<ITEM
+<dict>
+<key>cell</key><string>PSSwitchCell</string>
+<key>label</key><string>$esc_name</string>
+<key>key</key><string>App-$esc_id</string>
+<key>defaults</key><string>com.opencarplay</string>
+<key>default</key><false/>
+<key>id</key><string>App-$esc_id</string>
+<key>useLazyIcons</key><true/>
+<key>appIDForLazyIcon</key><string>$esc_id</string>
+<key>PostNotification</key><string>com.opencarplay.prefs-changed</string>
+</dict>
+ITEM
+    done
+    COUNT=$(echo "$APPS" | wc -l | tr -d ' ')
+fi
+
+echo '</array></dict></plist>' >> "$TMP"
+
+# Chỉ thay file thật khi file mới hợp lệ — bảng cài đặt hỏng còn tệ hơn bảng cũ.
+if command -v plutil >/dev/null 2>&1 && ! plutil -lint "$TMP" >/dev/null 2>&1; then
+    rm -f "$TMP"
+    echo "OpenCarPlay: plist sinh ra không hợp lệ, giữ nguyên danh sách cũ." >&2
+    exit 1
+fi
+
+mv "$TMP" "$DEST"
+chmod 644 "$DEST"
+echo "OpenCarPlay: đã liệt kê $COUNT ứng dụng vào $DEST"

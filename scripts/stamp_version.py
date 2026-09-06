@@ -30,6 +30,15 @@ def main() -> None:
     version = control_version(project)
     staging = Path(sys.argv[1])
 
+    # Bảng cài đặt hiển thị phiên bản cho người dùng đối chiếu. Giữ nó đúng bằng cách
+    # thay lúc đóng gói, thay vì bắt ai đó nhớ sửa hai chỗ.
+    for page in staging.rglob("Library/PreferenceLoader/Preferences/*.plist"):
+        raw = page.read_text(encoding="utf-8")
+        if "__VERSION__" not in raw:
+            continue
+        page.write_text(raw.replace("__VERSION__", version), encoding="utf-8")
+        print(f"  phiên bản {version}: {page.name}")
+
     for info in staging.rglob("*.bundle/Info.plist"):
         data = plistlib.loads(info.read_bytes())
         if data.get("CFBundleShortVersionString") == version and \

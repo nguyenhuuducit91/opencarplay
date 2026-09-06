@@ -17,9 +17,7 @@
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>Dùng ứng dụng iOS thông thường trên màn hình CarPlay.
-
-Khi công tắc này tắt, tweak không chạm vào bất cứ thứ gì — CarPlay hoạt động y như khi chưa cài.</string>
+			<string>Khi tắt, OpenCarPlay không chạm vào bất cứ thứ gì — CarPlay hoạt động y như khi chưa cài tweak.</string>
 		</dict>
 		<dict>
 			<key>PostNotification</key>
@@ -30,45 +28,38 @@ Khi công tắc này tắt, tweak không chạm vào bất cứ thứ gì — Ca
 			<false/>
 			<key>defaults</key>
 			<string>com.opencarplay</string>
+			<key>id</key>
+			<string>Enabled</string>
 			<key>key</key>
 			<string>Enabled</string>
 			<key>label</key>
-			<string>Bật OpenCarPlay</string>
+			<string>OpenCarPlay</string>
 		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>Nhập bundle identifier, cách nhau bằng dấu phẩy. Ví dụ:
-com.google.ios.youtube, com.spotify.client
-
-Ứng dụng hệ thống luôn bị chặn, dù có nhập hay không.</string>
+			<string>Chọn ứng dụng được phép hiện trên màn hình xe. Ứng dụng hệ thống luôn bị chặn, kể cả khi được bật.</string>
 			<key>label</key>
 			<string>Ứng dụng</string>
 		</dict>
 		<dict>
-			<key>PostNotification</key>
-			<string>com.opencarplay.prefs-changed</string>
-			<key>autoCaps</key>
-			<string>none</string>
-			<key>autoCorrection</key>
-			<string>no</string>
 			<key>cell</key>
-			<string>PSEditTextCell</string>
-			<key>defaults</key>
-			<string>com.opencarplay</string>
-			<key>key</key>
-			<string>AllowedApplications</string>
+			<string>PSLinkCell</string>
+			<key>id</key>
+			<string>OCPApplications</string>
 			<key>label</key>
-			<string>Cho phép</string>
-			<key>placeholder</key>
-			<string>com.vi.du</string>
+			<string>Chọn ứng dụng</string>
+			<key>pl_alt_plist_name</key>
+			<string>OpenCarPlayApps</string>
 		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
+			<key>footerText</key>
+			<string>Cách ứng dụng được trình bày trên màn hình đầu xe.</string>
 			<key>label</key>
-			<string>Hiển thị</string>
+			<string>Màn hình xe</string>
 		</dict>
 		<dict>
 			<key>PostNotification</key>
@@ -79,6 +70,8 @@ com.google.ios.youtube, com.spotify.client
 			<false/>
 			<key>defaults</key>
 			<string>com.opencarplay</string>
+			<key>id</key>
+			<string>AutoLaunch</string>
 			<key>key</key>
 			<string>AutoLaunch</string>
 			<key>label</key>
@@ -90,13 +83,15 @@ com.google.ios.youtube, com.spotify.client
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
-			<false/>
+			<true/>
 			<key>defaults</key>
 			<string>com.opencarplay</string>
+			<key>id</key>
+			<string>ForceLandscape</string>
 			<key>key</key>
-			<string>HideStatusBar</string>
+			<string>ForceLandscape</string>
 			<key>label</key>
-			<string>Ẩn thanh trạng thái</string>
+			<string>Ép xoay ngang</string>
 		</dict>
 		<dict>
 			<key>PostNotification</key>
@@ -107,6 +102,8 @@ com.google.ios.youtube, com.spotify.client
 			<false/>
 			<key>defaults</key>
 			<string>com.opencarplay</string>
+			<key>id</key>
+			<string>FullScreen</string>
 			<key>key</key>
 			<string>FullScreen</string>
 			<key>label</key>
@@ -118,21 +115,25 @@ com.google.ios.youtube, com.spotify.client
 			<key>cell</key>
 			<string>PSSwitchCell</string>
 			<key>default</key>
-			<true/>
+			<false/>
 			<key>defaults</key>
 			<string>com.opencarplay</string>
+			<key>id</key>
+			<string>HideStatusBar</string>
 			<key>key</key>
-			<string>ForceLandscape</string>
+			<string>HideStatusBar</string>
 			<key>label</key>
-			<string>Ép xoay ngang</string>
+			<string>Ẩn thanh trạng thái</string>
 		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>Hai mục dưới đây thay đổi hành vi thật của CarPlay và chưa được kiểm chứng trên iOS 18.6. Chúng chỉ có tác dụng từ giai đoạn khởi tạo 4 trở lên.</string>
+			<string>Hai mục này thay đổi hành vi thật của CarPlay và CHƯA được kiểm chứng trên iOS 18.6. Chúng chỉ có tác dụng từ giai đoạn khởi tạo 4 trở lên.
+
+Nếu dashboard hoặc SpringBoard có vấn đề, tắt chúng rồi respring. Tweak cũng tự tắt nếu phát hiện SpringBoard khởi động lại liên tục.</string>
 			<key>label</key>
-			<string>Thử nghiệm</string>
+			<string>Nâng cao</string>
 		</dict>
 		<dict>
 			<key>PostNotification</key>
@@ -143,10 +144,12 @@ com.google.ios.youtube, com.spotify.client
 			<false/>
 			<key>defaults</key>
 			<string>com.opencarplay</string>
+			<key>id</key>
+			<string>ExperimentalDiscovery</string>
 			<key>key</key>
 			<string>ExperimentalDiscovery</string>
 			<key>label</key>
-			<string>Đưa app lên dashboard</string>
+			<string>Đưa ứng dụng lên dashboard</string>
 		</dict>
 		<dict>
 			<key>PostNotification</key>
@@ -157,18 +160,20 @@ com.google.ios.youtube, com.spotify.client
 			<false/>
 			<key>defaults</key>
 			<string>com.opencarplay</string>
+			<key>id</key>
+			<string>ExperimentalSceneHosting</string>
 			<key>key</key>
 			<string>ExperimentalSceneHosting</string>
 			<key>label</key>
-			<string>Hiện app trên màn hình xe</string>
+			<string>Hiện ứng dụng trên màn hình xe</string>
 		</dict>
 		<dict>
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>Khảo sát runtime ghi kết quả vào /var/mobile/Media/OpenCarPlay/ để lấy về máy tính qua cáp USB.</string>
+			<string>Khảo sát runtime ghi kết quả vào /var/mobile/Media/OpenCarPlay/, lấy về máy tính qua cáp USB được mà không cần SSH.</string>
 			<key>label</key>
-			<string>Nhật ký và nghiên cứu</string>
+			<string>Chẩn đoán</string>
 		</dict>
 		<dict>
 			<key>PostNotification</key>
@@ -179,6 +184,8 @@ com.google.ios.youtube, com.spotify.client
 			<false/>
 			<key>defaults</key>
 			<string>com.opencarplay</string>
+			<key>id</key>
+			<string>DebugLogging</string>
 			<key>key</key>
 			<string>DebugLogging</string>
 			<key>label</key>
@@ -193,6 +200,8 @@ com.google.ios.youtube, com.spotify.client
 			<false/>
 			<key>defaults</key>
 			<string>com.opencarplay</string>
+			<key>id</key>
+			<string>RuntimeSurvey</string>
 			<key>key</key>
 			<string>RuntimeSurvey</string>
 			<key>label</key>
@@ -207,6 +216,8 @@ com.google.ios.youtube, com.spotify.client
 			<false/>
 			<key>defaults</key>
 			<string>com.opencarplay</string>
+			<key>id</key>
+			<string>SignalDiscovery</string>
 			<key>key</key>
 			<string>SignalDiscovery</string>
 			<key>label</key>
@@ -218,8 +229,9 @@ com.google.ios.youtube, com.spotify.client
 			<key>footerText</key>
 			<string>Mặc định là 0: dylib được nạp nhưng KHÔNG chạm gì vào hệ thống. Đó là bậc duy nhất đã kiểm chứng trên iOS 18.6; các bậc trên đã từng làm treo máy.
 
-Bảng này không có mã chạy nên không đổi được giá trị đó tại đây. Đặt bằng Filza hoặc SSH — file văn bản thuần chứa một số từ 0 đến 5:
-/var/mobile/Library/Preferences/com.opencarplay.stage
+Bảng này không chứa mã thực thi nên không đổi được giá trị đó tại đây. Đặt bằng Filza hoặc SSH — file văn bản thuần chứa một số từ 0 đến 5:
+
+  /var/mobile/Library/Preferences/com.opencarplay.stage
 
 Rồi respring. Nếu một bậc làm treo, lần khởi động sau tweak tự hạ về 0.</string>
 			<key>label</key>
@@ -229,11 +241,13 @@ Rồi respring. Nếu một bậc làm treo, lần khởi động sau tweak tự
 			<key>cell</key>
 			<string>PSGroupCell</string>
 			<key>footerText</key>
-			<string>OpenCarPlay — mã nguồn mở, GPLv3. Không thu thập dữ liệu.
+			<string>OpenCarPlay __VERSION__ — mã nguồn mở, GPLv3. Không thu thập dữ liệu.
 
-Bảng cài đặt này không chứa mã thực thi: nó là một file plist mà PreferenceLoader tự dựng. Đổi lại, nó không thể làm Settings crash.
+Bảng cài đặt này là một file plist, không chứa mã thực thi: mọi bản có binary đều làm Settings crash vì toolchain Linux không ký được con trỏ cho arm64e.
 
 Đưa ứng dụng tuỳ ý lên màn hình xe có thể gây mất tập trung khi lái và có thể vi phạm luật ở nơi bạn sống. Người sử dụng chịu hoàn toàn trách nhiệm.</string>
+			<key>label</key>
+			<string>Giới thiệu</string>
 		</dict>
 	</array>
 </dict>

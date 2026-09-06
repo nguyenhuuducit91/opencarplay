@@ -15,6 +15,10 @@ NS_ASSUME_NONNULL_BEGIN
 /// Phát trong process khi preferences vừa được nạp lại.
 FOUNDATION_EXPORT NSString *const OCPPreferencesDidChangeNotification;
 
+/// Tiền tố khoá của một ứng dụng được phép: `App-com.vi.du` = YES.
+/// Bảng cài đặt ghi từng công tắc riêng vì nó không có mã để dựng một mảng.
+FOUNDATION_EXPORT NSString *const OCPAllowedApplicationKeyPrefix;
+
 @interface OCPPreferences : NSObject
 
 + (instancetype)sharedPreferences;

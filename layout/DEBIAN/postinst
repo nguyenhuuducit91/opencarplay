@@ -9,6 +9,8 @@
 set -e
 
 PREFS_DIR="/var/mobile/Library/Preferences"
+JBROOT=""
+[ -d /var/jb/usr/lib ] && JBROOT="/var/jb"
 
 # CarPlay.app chỉ chạy khi đang kết nối; không chạy thì lệnh này vô hại.
 killall -9 CarPlay 2>/dev/null || true
@@ -49,8 +51,19 @@ if [ -f "$PREFS_DIR/com.opencarplay.bootstrapping" ]; then
     echo "  Chọn lại giai đoạn trong Cài đặt → OpenCarPlay khi bạn muốn thử tiếp."
 fi
 
+# Sinh trang "Chọn ứng dụng". Bảng cài đặt không có mã thực thi nên danh sách phải
+# được quét từ ngoài Settings — xem đầu file opencarplay-refresh-apps.
+REFRESH="$JBROOT/usr/bin/opencarplay-refresh-apps"
+[ -x "$REFRESH" ] || REFRESH="/usr/bin/opencarplay-refresh-apps"
+if [ -x "$REFRESH" ]; then
+    "$REFRESH" || echo "OpenCarPlay: không quét được danh sách ứng dụng, chạy tay: opencarplay-refresh-apps"
+else
+    echo "OpenCarPlay: không tìm thấy opencarplay-refresh-apps"
+fi
+
 echo "OpenCarPlay: đã cài."
 echo "  Mặc định là GIAI ĐOẠN 0 — dylib được nạp nhưng không chạm gì vào hệ thống."
-echo "  Respring, rồi mở Cài đặt → OpenCarPlay để cấu hình và nâng giai đoạn."
+echo "  Respring, rồi mở Cài đặt → OpenCarPlay."
+echo "  Sau khi cài thêm ứng dụng mới, chạy: opencarplay-refresh-apps"
 
 exit 0

@@ -264,11 +264,24 @@ relative method list, mọi symbol đều bind được — mà vẫn crash. T�
 binary. Mã nguồn vẫn ở `Preferences/` để dựng lại khi có Xcode trên macOS hoặc khi lấy
 được crash log.
 
-Đánh đổi: không có nhóm trạng thái động, không có trình chọn ứng dụng dạng danh sách, và
-**giai đoạn khởi tạo phải đặt bằng file** — xem footer trong bảng.
+**Chọn ứng dụng** là một trang con liệt kê ứng dụng đã cài, mỗi ứng dụng một công tắc
+kèm icon. Trang đó do `opencarplay-refresh-apps` sinh ra — `postinst` tự chạy khi cài.
+Sau khi cài thêm ứng dụng mới, chạy lại:
 
-Danh sách ứng dụng nhập bằng ô văn bản, các bundle identifier cách nhau bằng dấu phẩy.
-Tweak chấp nhận cả mảng (khi sửa file bằng Filza) lẫn chuỗi.
+```bash
+opencarplay-refresh-apps
+```
+
+Mỗi công tắc ghi một khoá riêng `App-<bundle id>`; tweak đọc mọi khoá có tiền tố đó và
+đang bật. Khoá cũ `AllowedApplications` (mảng hoặc chuỗi ngăn cách bằng dấu phẩy) vẫn
+được chấp nhận để sửa tay bằng Filza.
+
+Trang con nằm trong `OpenCarPlayApps.plist`, cùng thư mục với trang chính và **không có
+khoá `entry`** — nhờ vậy PreferenceLoader không tạo thêm dòng thừa ở gốc Cài đặt, nhưng
+trang chính vẫn nạp được nó theo tên qua `pl_alt_plist_name`.
+
+Đánh đổi còn lại: không có nhóm trạng thái động, và **giai đoạn khởi tạo phải đặt bằng
+file** — xem footer trong bảng.
 
 Bảng cài đặt ghi qua `CFPreferences` rồi `CFPreferencesAppSynchronize` và bắn Darwin
 notification `com.opencarplay.prefs-changed`, nên thay đổi có hiệu lực ngay mà không cần
