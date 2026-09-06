@@ -33,6 +33,7 @@
 #import <fcntl.h>
 #import <notify.h>
 #import <objc/message.h>
+#import <mach-o/dyld.h>
 #import <os/log.h>
 #import <sys/syslog.h>
 #import <sys/stat.h>
@@ -294,6 +295,23 @@ static void OCPWriteLoadMarker(const char *processName, int killSwitch, int stag
     // os_log với OS_LOG_DEFAULT không cần tạo đối tượng nên dùng được ở đây.
 
     const char *processName = getprogname();
+    const char *mainImage = _dyld_get_image_name(0);
+
+    // GHI NGAY, TRƯỚC MỌI KIỂM TRA.
+    //
+    // Bản 0.30-0.45 đặt dòng log này SAU phép so tên process, nên khi tên không khớp thì
+    // constructor lặng lẽ trả về. Hậu quả: "không có dòng log nào" bị đọc thành "dylib
+    // không được nạp", trong khi nó chỉ có nghĩa là "getprogname() không bằng đúng
+    // SpringBoard hoặc CarPlay". Hai kết luận hoàn toàn khác nhau, và suốt nhiều bản tôi
+    // đã dùng nhầm cái sau làm bằng chứng cho cái trước.
+    //
+    // Ghi cả getprogname() lẫn đường dẫn image chính: nếu tên process không như dự đoán,
+    // dòng này cho biết ngay tên thật là gì.
+    syslog(LOG_ERR, "[OpenCarPlay] ctor: nap vao progname=%s main=%s pid=%d",
+           processName ? processName : "(null)",
+           mainImage ? mainImage : "(null)",
+           (int)getpid());
+
     if (processName == NULL) return;
 
     BOOL isSpringBoard = (strcmp(processName, "SpringBoard") == 0);

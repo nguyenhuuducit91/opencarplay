@@ -41,13 +41,19 @@ hr() { echo "------------------------------------------------------------"; }
 
 hr
 echo "1. CONSTRUCTOR CỦA OPENCARPLAY"
-if grep -q "OpenCarPlay" "$OUT/full.txt"; then
-    grep -i "opencarplay" "$OUT/full.txt" | head -20
+# Từ 0.46.0 constructor ghi dòng "nap vao progname=..." NGAY khi được nạp, trước mọi
+# kiểm tra. Nên dòng đó có hay không là câu trả lời dứt khoát cho "dylib có được nạp
+# không" — khác với các bản trước, khi log chỉ chạy sau khi tên process đã khớp.
+if grep -q "OpenCarPlay\] ctor: nap vao" "$OUT/full.txt"; then
+    echo "  => dylib ĐÃ ĐƯỢC NẠP. Các process nạp nó:"
+    grep -o "OpenCarPlay\] ctor: nap vao.*" "$OUT/full.txt" | sort -u | sed 's/^/    /'
     echo
-    echo "  => dylib ĐÃ ĐƯỢC NẠP."
+    grep -o "OpenCarPlay\] ctor: process=.*" "$OUT/full.txt" | sort -u | sed 's/^/    /'
 else
-    echo "  (không có dòng nào)"
-    echo "  => dylib KHÔNG được nạp vào process nào trong 75 giây vừa rồi."
+    echo "  (không có dòng 'ctor: nap vao' nào)"
+    echo "  => injector KHÔNG nạp dylib vào bất kỳ process nào trong 75 giây vừa rồi."
+    echo "     (Chỉ kết luận được điều này từ bản 0.46.0 trở đi; các bản trước chỉ ghi"
+    echo "      log SAU khi tên process đã khớp, nên im lặng không chứng minh được gì.)"
 fi
 
 hr
