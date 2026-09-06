@@ -41,9 +41,12 @@ say "2. Crash report của Settings"
 if have idevicecrashreport; then
     mkdir -p "$OUT/crash"
     idevicecrashreport -e -k "$OUT/crash" 2>&1 | tail -3 || true
-    echo "  --- crash của Settings:"
-    find "$OUT/crash" -type f -name 'Preferences-*' 2>/dev/null | sort | tail -5 | sed 's/^/    /'
-    LATEST=$(find "$OUT/crash" -type f -name 'Preferences-*' 2>/dev/null | sort | tail -1)
+    echo "  --- crash của Settings / CarPlay / SpringBoard:"
+    find "$OUT/crash" -type f \( -name 'Preferences-*' -o -name 'CarPlay*' \
+         -o -name 'SpringBoard-*' -o -name '*OpenCarPlay*' \) 2>/dev/null \
+        | sort | tail -8 | sed 's/^/    /'
+    LATEST=$(find "$OUT/crash" -type f \( -name 'CarPlay*' -o -name 'Preferences-*' \) \
+             2>/dev/null | sort | tail -1)
     if [ -n "$LATEST" ]; then
         echo "  --- lý do của bản mới nhất:"
         grep -m3 -iE '"reason"|"exception"|Termination|"name"' "$LATEST" 2>/dev/null \

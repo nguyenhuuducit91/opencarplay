@@ -82,6 +82,17 @@ NSString *const OCPApplicationTag = @"OpenCarPlay";
 /// supportsTemplates PHẢI là NO: nếu bật, hệ thống sẽ cố tìm template do ứng dụng
 /// cung cấp, không thấy, rồi process host template sẽ spawn và chết liên tục.
 /// Đây là bài học rút ra từ phân tích carplay-cast (RESEARCH.md §2.5).
+///
+/// supportsMaps cũng PHẢI là NO trên iOS 18.
+///
+/// carplay-cast đặt YES vì trên iOS 14 đó là cách để một app không-template được mở
+/// toàn màn hình. Trên iOS 18.6 nó gây hậu quả khác hẳn: mọi app ta thêm đều tự khai
+/// là app bản đồ, dashboard cố đặt chúng vào khe bản đồ và host scene bản đồ của
+/// chúng. Không app nào có scene CarPlay thật, nên dashboard dựng hỏng và MÀN HÌNH XE
+/// ĐEN HOÀN TOÀN — không crash, nên không có crash report, và người dùng chỉ thấy một
+/// màn hình đen không thoát ra được.
+///
+/// Đo trên xe thật: bật ExperimentalDiscovery với supportsMaps=YES -> đen ngay.
 + (nullable id)declarationForBundleIdentifier:(NSString *)bundleIdentifier
                                    bundleURL:(nullable NSURL *)bundleURL {
     id declaration = [OCPProbe instantiateClassNamed:@"CRCarPlayAppDeclaration"];
@@ -89,7 +100,7 @@ NSString *const OCPApplicationTag = @"OpenCarPlay";
 
     BOOL ok = YES;
     ok &= [OCPProbe setValue:@NO forKey:@"supportsTemplates" onObject:declaration];
-    ok &= [OCPProbe setValue:@YES forKey:@"supportsMaps" onObject:declaration];
+    ok &= [OCPProbe setValue:@NO forKey:@"supportsMaps" onObject:declaration];
     ok &= [OCPProbe setValue:bundleIdentifier forKey:@"bundleIdentifier" onObject:declaration];
     if (bundleURL != nil) {
         // Không tính vào `ok`: một số bản iOS dùng kiểu khác cho trường này.
@@ -217,8 +228,16 @@ NSString *const OCPApplicationTag = @"OpenCarPlay";
         OCPLogError_(@"augment library thất bại: %@ — %@", exception.name, exception.reason);
     }
 
-    // Qua được tới đây nghĩa là dựng danh sách không làm chết dashboard.
-    [OCPCrashGuard endRiskyOperation:@"carplay-discovery"];
+    // KHÔNG xoá dấu rủi ro ở đây.
+    //
+    // Bản trước xoá ngay tại chỗ này, tức coi "dựng xong danh sách" là "an toàn". Sai:
+    // dashboard hỏng SAU bước này, khi nó dựng giao diện từ danh sách vừa bị sửa. Màn
+    // hình xe đen không phải là crash, nên không có gì để bộ đếm crash bắt, và vì dấu
+    // đã bị xoá nên lần cắm sau tweak lại làm hỏng y hệt — hỏng mãi mãi, không tự khỏi.
+    //
+    // Dấu chỉ được xoá khi dashboard THỰC SỰ hiện lên; xem hook viewDidAppear: trong
+    // Hooks.xm. Còn sót lại ở lần cắm sau nghĩa là lần trước dashboard không hiện được,
+    // và discovery tự tắt.
 
     OCPLogError_(@"discovery: %lu/%lu ứng dụng đã đưa lên dashboard (chiến lược %@)",
                  (unsigned long)added,

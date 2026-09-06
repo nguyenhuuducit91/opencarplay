@@ -13,6 +13,7 @@
 
 #import <dlfcn.h>
 
+#import "OCPCrashGuard.h"
 #import "OCPDiscoveryAdapter.h"
 #import "OCPLog.h"
 #import "OCPProbe.h"
@@ -49,6 +50,19 @@
 
 /// Được gọi khi ứng dụng được cài/gỡ. Hệ thống dựng lại danh sách, nên phần bổ sung
 /// của ta biến mất và phải thêm lại.
+/// Dashboard đã hiện lên thật. Đây là mốc duy nhất chứng minh phần bổ sung của ta
+/// không làm hỏng giao diện — dựng xong danh sách chưa chứng minh được gì, vì màn hình
+/// đen xảy ra ở bước dựng giao diện sau đó.
+- (void)viewDidAppear:(BOOL)animated {
+    %orig;
+    @try {
+        [OCPCrashGuard endRiskyOperation:@"carplay-discovery"];
+        OCPLogError_(@"dashboard đã hiện — đánh dấu phiên discovery an toàn");
+    } @catch (NSException *exception) {
+        OCPLogError_(@"đánh dấu phiên an toàn thất bại: %@", exception.reason);
+    }
+}
+
 - (void)_handleAppLibraryRefresh {
     @try {
         id library = [OCPProbe invoke:self selector:@"library"];
@@ -143,10 +157,14 @@ void OCPInstallCarPlayHooks(void) {
                          @"xem RESEARCH.md Q2, cần khảo sát runtime để tìm điểm thay thế");
         }
 
-        if ([OCPProbe class:@"_CARDashboardHomeViewController"
-                 respondsTo:@"_handleAppLibraryRefresh"]) {
+        // Nhóm này chứa cả viewDidAppear: — mốc xác nhận dashboard hiện được. Cài
+        // khi class tồn tại, không đòi hỏi _handleAppLibraryRefresh phải có.
+        if ([OCPProbe classNamed:@"_CARDashboardHomeViewController"] != Nil) {
             %init(OCPDashboardRefresh);
-            OCPLogC(OCPLogApplication, @"đã hook -[_CARDashboardHomeViewController _handleAppLibraryRefresh]");
+            OCPLogError_(@"đã hook _CARDashboardHomeViewController");
+        } else {
+            OCPLogError_(@"_CARDashboardHomeViewController không tồn tại — không có mốc "
+                         @"xác nhận dashboard, discovery sẽ tự tắt sau lần cắm này");
         }
 
         if ([OCPProbe metaClass:@"CARApplicationLaunchInfo"
