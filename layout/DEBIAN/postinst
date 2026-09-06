@@ -149,6 +149,20 @@ mkdir -p "$REPORT_DIR" 2>/dev/null || true
     fi
     echo
 
+    echo "--- THU NAP DYLIB (dlopen) ---"
+    # Goi dung loi goi ma injector dung, roi in dlerror(). Day la cach duy nhat bien
+    # "that bai im lang" thanh mot thong bao doc duoc.
+    SELFTEST="$JBROOT/usr/bin/opencarplay-selftest"
+    if [ -x "$SELFTEST" ]; then
+        "$SELFTEST" 2>&1 | sed 's/^/     /'
+        echo "     (ma thoat: $?)"
+    else
+        echo "     KHONG CHAY DUOC $SELFTEST"
+        echo "     -> ban than tool cung khong duoc he thong chap nhan;"
+        echo "        do la bang chung ve trust cache / chu ky, khong phai ve dylib."
+    fi
+    echo
+
     echo "--- dpkg ghi nhan goi cai nhung gi ---"
     dpkg -L com.opencarplay.tweak 2>&1 | sed 's/^/     /' || echo "     (dpkg khong tra loi)"
     echo

@@ -78,6 +78,14 @@ OpenCarPlay_LDFLAGS += -Wl,-rpath,/Library/Frameworks
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
+# Công cụ chẩn đoán: gọi dlopen lên chính dylib rồi in dlerror(). Xem Tools/selftest.c.
+TOOL_NAME = opencarplay-selftest
+opencarplay-selftest_FILES = Tools/selftest.c
+opencarplay-selftest_INSTALL_PATH = /usr/bin
+opencarplay-selftest_CFLAGS = -Wall
+
+include $(THEOS_MAKE_PATH)/tool.mk
+
 # Preference bundle KHÔNG được đóng gói.
 #
 # Bảng cài đặt là một file plist thuần trong layout/Library/PreferenceLoader/Preferences/,
@@ -126,7 +134,7 @@ LDID ?= $(firstword $(wildcard $(HOME)/.local/bin/ldid) \
                     $(shell command -v ldid 2>/dev/null) ldid)
 
 after-stage::
-	@for dylib in `find $(THEOS_STAGING_DIR) -name '*.dylib'`; do \
+	@for dylib in `find $(THEOS_STAGING_DIR) -name '*.dylib' -o -path '*/usr/bin/opencarplay-selftest'`; do \
 		echo "  sửa phụ thuộc CydiaSubstrate: $$dylib"; \
 		$(THEOS)/toolchain/linux/iphone/bin/install_name_tool -change \
 			@rpath/CydiaSubstrate.framework/CydiaSubstrate \
